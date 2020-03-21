@@ -1,0 +1,40 @@
+version: "3.0"
+services:
+  mpd:
+    image: vimagick/mpd:latest
+    ports:
+      - "6600:6600"
+    volumes:
+      - ./conf/mpd.conf:/etc/mpd.conf
+      - ./data/mpd:/mpd
+      - ./data/music:/music
+    restart: always
+
+  front:
+    image: nginx:latest
+    ports:
+      - "8888:80"
+    volumes:
+      - ./player:/player:ro
+      - ./conf/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+  db:
+    image: postgres:11
+    volumes:
+      - ./conf/initdb.sh:/docker-entrypoint-initdb.d/initdb.sh
+      - ./data/db:/var/lib/postgresql/data
+    environment:
+      - APP_PASSWORD=${DB_APP_PASSWORD}
+
+  djoek:
+    build:
+      context: .
+      dockerfile: Dockerfile-djoek
+    image: djoek:latest
+    environment:
+      - DJOEK_MPD_HOST=mpd
+      - DJOEK_DB_URI=postgres://app:${DB_APP_PASSWORD}@db/app
+      - DJOEK_MUSIC_DIR=/music
+      - DJOEK_GOOGLE_API_KEY=${DJOEK_GOOGLE_API_KEY}
+    volumes:
+      - ./data/music:/music
