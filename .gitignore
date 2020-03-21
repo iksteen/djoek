@@ -3,3 +3,5 @@
 *.egg-info
 .idea
 __pycache__
+data/*
+!data/music/.gitkeep
