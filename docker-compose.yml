@@ -36,5 +36,8 @@ services:
       - DJOEK_DB_URI=postgres://app:${DB_APP_PASSWORD}@db/app
       - DJOEK_MUSIC_DIR=/music
       - DJOEK_GOOGLE_API_KEY=${DJOEK_GOOGLE_API_KEY}
+      - DJOEK_AUTH0_DOMAIN=${DJOEK_AUTH0_DOMAIN}
+      - DJOEK_AUTH0_AUDIENCE=${DJOEK_AUTH0_AUDIENCE}
+      - DJOEK_AUTH0_PARTIES=${DJOEK_AUTH0_PARTIES}
     volumes:
       - ./data/music:/music
