@@ -1,7 +1,8 @@
 import asyncio
 import os
+import re
 import subprocess
-from typing import Any, Dict, cast
+from typing import Any, Dict, List, cast
 
 import aiofiles
 import httpx
@@ -10,6 +11,8 @@ from peewee_async import Manager
 
 import djoek.settings as settings
 from djoek.models import Song
+
+WORD_RE = re.compile(r"\w+", re.UNICODE)
 
 
 async def download_video(vid: str) -> bytes:
@@ -34,6 +37,10 @@ async def get_metadata(vid: str) -> Dict[str, Any]:
     return cast(Dict[str, Any], r.json())
 
 
+def edge_ngrams(key: str) -> List[str]:
+    return [key[0:i] for i in range(1, len(key) + 1)]
+
+
 async def add_from_youtube(manager: Manager, vid: str) -> Song:
     metadata = await get_metadata(vid)
     snippet = metadata["items"][0]["snippet"]
@@ -41,13 +48,24 @@ async def add_from_youtube(manager: Manager, vid: str) -> Song:
     tags = snippet["tags"]
     external_id = f"youtube:{vid}"
 
+    keywords = [vid]
+    for keyword in title.split():
+        keywords.append(keyword)
+        keyword = "".join(WORD_RE.findall(keyword))
+        keywords.extend([ngram for ngram in edge_ngrams(keyword) if ngram != keyword])
+    for tag in tags:
+        keywords.extend(edge_ngrams(tag))
+    search_value = fn.to_tsvector(" ".join(keywords))
+
+    song: Song
+
     try:
         async with manager.atomic():
             song = await manager.create(
                 Song,
                 title=title,
                 tags=tags,
-                search_field=fn.to_tsvector(f"{title} {vid} {' '.join(tags)}"),
+                search_field=search_value,
                 external_id=external_id,
             )
 
@@ -57,6 +75,9 @@ async def add_from_youtube(manager: Manager, vid: str) -> Song:
                 os.path.join(settings.MUSIC_DIR, f"{song.id}.m4a"), "wb"
             ) as f:
                 await f.write(data)
-        return cast(Song, song)
+        return song
     except IntegrityError:
-        return cast(Song, await manager.get(Song, external_id=external_id))
+        song = await manager.get(Song, external_id=external_id)
+        song.search_field = search_value
+        await manager.update(song, only=["search_field"])
+        return song
