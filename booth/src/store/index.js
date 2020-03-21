@@ -1,6 +1,6 @@
 import Vue from "vue";
 import Vuex from "vuex";
-import Axios from "axios";
+import { getInstance as getApiInstance } from "../api";
 
 Vue.use(Vuex);
 
@@ -21,14 +21,12 @@ export default new Vuex.Store({
   },
   actions: {
     UPDATE_STATUS: async context => {
-      const {
-        data: { current_song: currentSong, next_song: nextSong }
-      } = await Axios.get("/api/");
-      context.commit("UPDATE_STATUS", { currentSong, nextSong });
+      const status = await getApiInstance().getStatus();
+      context.commit("UPDATE_STATUS", status);
     },
     UPDATE_PLAYLIST: async context => {
-      const { data } = await Axios.get("/api/playlist/");
-      context.commit("UPDATE_PLAYLIST", data);
+      const playlist = await getApiInstance().getPlaylist();
+      context.commit("UPDATE_PLAYLIST", playlist);
     }
   },
   modules: {}

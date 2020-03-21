@@ -32,7 +32,6 @@
 </template>
 
 <script>
-import Axios from "axios";
 import { mapActions } from "vuex";
 
 export default {
@@ -73,13 +72,11 @@ export default {
 
     async search(q, external = false) {
       this.pendingSearch = [q, external];
-
-      const {
-        data: { results, external: externalSearch }
-      } = await Axios.post("/api/search/", {
+2
+      const { results, external: externalSearch } = await this.$api.search(
         q,
         external
-      });
+      );
 
       if (
         !this.pendingSearch ||
@@ -107,10 +104,7 @@ export default {
 
     async download(videoId, enqueue) {
       this.reset();
-      await Axios.post("/api/playlist/", {
-        video_id: videoId,
-        enqueue
-      });
+      await this.$api.download(videoId, enqueue);
       this.updateStatus();
       this.updatePlaylist();
     },

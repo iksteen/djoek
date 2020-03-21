@@ -2,21 +2,18 @@ from typing import Any, Dict, List, Optional, cast
 
 import httpx
 from fastapi import Depends, FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from mpd.asyncio import MPDClient
 from peewee_async import Manager
 from pydantic import BaseModel
 from starlette.requests import Request
 
 from djoek import settings
+from djoek.auth import require_auth
 from djoek.download import add_from_youtube
 from djoek.models import Song
 from djoek.player import Player, get_mpd_client
 
 app = FastAPI()
-app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["GET"]
-)
 
 
 async def get_manager(request: Request) -> Manager:
@@ -64,14 +61,18 @@ async def status(player: Player = Depends(get_player),) -> StatusSchema:
     )
 
 
-@app.get("/playlist/", response_model=List[PlaylistItemSchema])
+@app.get(
+    "/playlist/",
+    response_model=List[PlaylistItemSchema],
+    dependencies=[Depends(require_auth)],
+)
 async def playlist_list(
     player: Player = Depends(get_player),
 ) -> List[PlaylistItemSchema]:
     return [PlaylistItemSchema(title=song.title) for song in player.queue]
 
 
-@app.post("/playlist/")
+@app.post("/library/", response_model=str, dependencies=[Depends(require_auth)])
 async def playlist_add(
     task: LibraryAddSchema,
     manager: Manager = Depends(get_manager),
@@ -92,7 +93,11 @@ async def playlist_add(
     return cast(str, song.title)
 
 
-@app.post("/search/", response_model=SearchResponseSchema)
+@app.post(
+    "/search/",
+    response_model=SearchResponseSchema,
+    dependencies=[Depends(require_auth)],
+)
 async def search(
     query: SearchRequestSchema, manager: Manager = Depends(get_manager)
 ) -> Dict[str, Any]:

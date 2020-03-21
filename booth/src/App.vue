@@ -1,5 +1,8 @@
 <template>
-  <Booth />
+  <div v-if="!$auth.loading">
+    <button v-if="!$auth.isAuthenticated" @click="login">Log in</button>
+    <Booth v-if="$auth.isAuthenticated" />
+  </div>
 </template>
 
 <script>
@@ -9,6 +12,11 @@ export default {
   name: "App",
   components: {
     Booth
+  },
+  methods: {
+    login() {
+      this.$auth.loginWithRedirect();
+    }
   }
 };
 </script>
