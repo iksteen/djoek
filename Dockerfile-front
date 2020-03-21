@@ -1,0 +1,10 @@
+FROM node:lts
+ADD booth /booth
+WORKDIR /booth
+RUN yarn install && yarn build
+
+FROM nginx:latest
+ADD conf/default.conf /etc/nginx/conf.d/default.conf
+ADD player /player/
+COPY --from=0 /booth/dist/ /booth/
+
