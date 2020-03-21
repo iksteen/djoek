@@ -43,12 +43,17 @@ class LibraryAddSchema(BaseModel):
 
 class SearchRequestSchema(BaseModel):
     q: str
-    youtube: bool = False
+    external: bool = False
 
 
 class SearchResultSchema(BaseModel):
     title: str
     video_id: str
+
+
+class SearchResponseSchema(BaseModel):
+    external: bool
+    results: List[SearchResultSchema]
 
 
 @app.get("/", response_model=StatusSchema)
@@ -87,19 +92,21 @@ async def playlist_add(
     return cast(str, song.title)
 
 
-@app.post("/search/", response_model=List[SearchResultSchema])
+@app.post("/search/", response_model=SearchResponseSchema)
 async def search(
     query: SearchRequestSchema, manager: Manager = Depends(get_manager)
-) -> List[Dict[str, Any]]:
-    if not query.youtube:
+) -> Dict[str, Any]:
+    if not query.external:
         songs = await manager.execute(
             Song.select().where(Song.search_field.match(query.q, plain=True))
         )
-        if songs:
-            return [
+        return {
+            "external": False,
+            "results": [
                 {"title": song.title, "video_id": song.external_id.split(":")[1]}
                 for song in songs
-            ]
+            ],
+        }
 
     async with httpx.AsyncClient() as client:
         r = await client.get(
@@ -114,8 +121,11 @@ async def search(
         )
         result = r.json()
 
-    return [
-        {"title": item["snippet"]["title"], "video_id": item["id"]["videoId"]}
-        for item in result["items"]
-        if item["id"]["kind"] == "youtube#video"
-    ]
+    return {
+        "external": True,
+        "results": [
+            {"title": item["snippet"]["title"], "video_id": item["id"]["videoId"]}
+            for item in result["items"]
+            if item["id"]["kind"] == "youtube#video"
+        ],
+    }
