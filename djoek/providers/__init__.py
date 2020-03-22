@@ -8,6 +8,7 @@ class MetadataSchema(BaseModel):
     title: str
     tags: List[str]
     extension: str
+    preview_url: Optional[str]
 
 
 class SearchResultSchema(BaseModel):
@@ -25,10 +26,6 @@ class Provider(ABC):
 
     @abstractmethod
     async def download(self, content_id: str, path: str) -> None:
-        ...
-
-    @abstractmethod
-    def get_preview_url(self, content_id: str) -> Optional[str]:
         ...
 
     @abstractmethod

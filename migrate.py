@@ -15,7 +15,7 @@ def migrate_extension() -> None:
         ALTER TABLE song ADD COLUMN extension TEXT;
         UPDATE song SET extension = '.m4a';
         ALTER TABLE song ALTER COLUMN extension SET NOT NULL;
-    """
+        """
     )
 
     for song in Song.select():
@@ -33,16 +33,36 @@ def migrate_extension() -> None:
     client.idle("update")
 
 
+def migrate_preview_url() -> None:
+    database.execute_sql(
+        """
+        ALTER TABLE song ADD COLUMN preview_url TEXT;
+        UPDATE song
+            SET preview_url = 'http://youtu.be/' || SPLIT_PART(external_id, ':', 2)
+            WHERE SPLIT_PART(external_id, ':', 1) = 'youtube';
+        """
+    )
+
+
+def column_exists(column_name: str) -> bool:
+    try:
+        database.execute_sql(f'SELECT "{column_name}" FROM song;')
+    except peewee.ProgrammingError as e:
+        if isinstance(e.orig, UndefinedColumn):
+            database.rollback()
+            return False
+        else:
+            raise
+    return True
+
+
 if __name__ == "__main__":
     db_config = parse_dsn(settings.DB_URI)
     database.init(db_config.pop("dbname"), **db_config)
     database.create_tables([Song])
 
-    try:
-        database.execute_sql("SELECT extension FROM song;")
-    except peewee.ProgrammingError as e:
-        if isinstance(e.orig, UndefinedColumn):
-            database.rollback()
-            migrate_extension()
-        else:
-            raise
+    if not column_exists("extension"):
+        migrate_extension()
+
+    if not column_exists("preview_url"):
+        migrate_preview_url()

@@ -1,6 +1,6 @@
 import asyncio
 import subprocess
-from typing import List, Optional
+from typing import List
 
 import aiofiles
 import httpx
@@ -24,7 +24,9 @@ class YouTubeProvider(Provider):
             )
         metadata = r.json()
         snippet = metadata["items"][0]["snippet"]
-        return MetadataSchema(**snippet, extension=".m4a")
+        return MetadataSchema(
+            **snippet, extension=".m4a", preview_url=f"https://youtu.be/{content_id}"
+        )
 
     async def download(self, content_id: str, path: str) -> None:
         p = await asyncio.create_subprocess_exec(
@@ -40,9 +42,6 @@ class YouTubeProvider(Provider):
 
         async with aiofiles.open(path, "wb") as f:
             await f.write(data)
-
-    def get_preview_url(self, content_id: str) -> Optional[str]:
-        return f"https://youtu.be/{content_id}"
 
     async def search(self, query: str) -> List[SearchResultSchema]:
         async with httpx.AsyncClient() as client:

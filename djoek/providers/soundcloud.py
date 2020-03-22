@@ -1,6 +1,6 @@
 import asyncio
 import subprocess
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, cast
 
 import aiofiles
 import httpx
@@ -23,7 +23,10 @@ class SoundcloudProvider(Provider):
     async def get_metadata(self, content_id: str) -> MetadataSchema:
         metadata = await self.get_track_info(content_id)
         return MetadataSchema(
-            title=metadata["title"], tags=metadata["tag_list"].split(), extension=".mp3"
+            title=metadata["title"],
+            tags=metadata["tag_list"].split(),
+            extension=".mp3",
+            preview_url=metadata["permalink_url"],
         )
 
     async def download(self, content_id: str, path: str) -> None:
@@ -41,9 +44,6 @@ class SoundcloudProvider(Provider):
 
         async with aiofiles.open(path, "wb") as f:
             await f.write(data)
-
-    def get_preview_url(self, content_id: str) -> Optional[str]:
-        return None
 
     async def search(self, query: str) -> List[SearchResultSchema]:
         async with httpx.AsyncClient() as client:

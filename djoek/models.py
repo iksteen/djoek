@@ -18,6 +18,7 @@ class Song(Model):
     search_field = TSVectorField()
     external_id = TextField(unique=True)
     extension = TextField()
+    preview_url = TextField(null=True)
 
     @property
     def filename(self) -> str:

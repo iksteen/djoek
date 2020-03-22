@@ -113,6 +113,7 @@ async def playlist_add(
                 search_field=search_value,
                 external_id=task.external_id,
                 extension=metadata.extension,
+                preview_url=metadata.preview_url,
             )
 
             song_path = os.path.join(settings.MUSIC_DIR, song.filename)
@@ -153,7 +154,7 @@ async def search(
             SearchResultSchema(
                 title=song.title,
                 external_id=song.external_id,
-                preview_url=PROVIDERS[song.provider].get_preview_url(song.content_id),
+                preview_url=song.preview_url,
             )
             for song in songs
         ]
