@@ -1,6 +1,8 @@
 <template>
   <div>
-    <h3>Search</h3>
+    <div class="display-1">
+      Search
+    </div>
     <v-divider />
     <v-text-field
       ref="query"
@@ -22,42 +24,21 @@
     </v-text-field>
     &nbsp;
     <div v-if="lastQuery">
-      <h3 v-if="lastQuery">
+      <div
+        class="title"
+        v-if="lastQuery"
+      >
         Results for {{ lastQuery }}:
-      </h3>
-      <ul>
-        <li
-          v-for="result in results"
-          :key="result.externalId"
-        >
-          {{ result.title }} -
-          <a
-            href="#"
-            @click.prevent="download(result.externalId, true)"
-          >
-            Add
-          </a>
-          <span v-if="provider !== 'local'">
-            -
-            <a
-              href="#"
-              @click.prevent="download(result.externalId, false)"
-            >
-              Download
-            </a>
-          </span>
-          <span v-if="result.previewUrl">
-            -
-            <a
-              :href="result.previewUrl"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              Preview
-            </a>
-          </span>
-        </li>
-      </ul>
+      </div>
+      <search-result
+        v-for="(result, i) in results"
+        :key="i"
+        :title="result.title"
+        :provider="provider"
+        @download="download(result.externalId, false)"
+        @enqueue="download(result.externalId, true)"
+        @preview="preview(result.previewUrl)"
+      />
     </div>
   </div>
 </template>
@@ -66,10 +47,12 @@
   import { VTextField } from 'vuetify/lib'
   import { mapActions } from 'vuex'
   import SearchButton from './SearchButton'
+  import SearchResult from './SearchResult'
 
   export default {
     name: 'Search',
     components: {
+      SearchResult,
       SearchButton,
       VTextField,
     },
@@ -112,6 +95,10 @@
       },
 
       async search (provider, q) {
+        if (!q) {
+          return
+        }
+
         this.pendingSearch = [provider, q]
 
         const results = await this.$api.search(provider, q)
@@ -142,6 +129,10 @@
         await this.$api.download(externalId, enqueue)
         this.updateStatus()
         this.updatePlaylist()
+      },
+
+      preview (url) {
+        window.open(url, '_blank', 'noopener,noreferrer')
       },
 
       ...mapActions({

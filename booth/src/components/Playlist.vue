@@ -1,6 +1,8 @@
 <template>
   <div>
-    <h3>Playlist</h3>
+    <div class="display-1">
+      Playlist
+    </div>
     <v-divider />
 
     <v-list class="mt-4">
