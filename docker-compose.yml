@@ -1,9 +1,7 @@
-version: "3.0"
+version: "3.5"
 services:
   mpd:
     image: vimagick/mpd:latest
-    ports:
-      - "6600:6600"
     volumes:
       - ./conf/mpd.conf:/etc/mpd.conf
       - ./data/mpd:/mpd
@@ -15,8 +13,6 @@ services:
       context: .
       dockerfile: Dockerfile-front
     image: djoek-front:latest
-    ports:
-      - "8888:80"
 
   db:
     image: postgres:11
