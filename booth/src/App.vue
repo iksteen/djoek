@@ -1,40 +1,31 @@
 <template>
-  <div v-if="!$auth.loading">
-    <button v-if="!$auth.isAuthenticated" @click="login">Log in</button>
-    <Booth v-if="$auth.isAuthenticated" />
-  </div>
+  <v-app v-if="!$auth.loading">
+    <v-content>
+      <button
+        v-if="!$auth.isAuthenticated"
+        @click="login"
+      >
+        Log in
+      </button>
+      <booth v-if="$auth.isAuthenticated" />
+    </v-content>
+  </v-app>
 </template>
 
 <script>
-import Booth from "./components/Booth.vue";
+  import Booth from './components/Booth'
 
-export default {
-  name: "App",
-  components: {
-    Booth
-  },
-  methods: {
-    login() {
-      this.$auth.loginWithRedirect();
-    }
+  export default {
+    name: 'App',
+
+    components: {
+      Booth,
+    },
+
+    methods: {
+      login () {
+        this.$auth.loginWithRedirect()
+      },
+    },
   }
-};
 </script>
-
-<style>
-body {
-  background-color: black;
-  margin: 0;
-  padding: 0;
-}
-
-* {
-  color: white;
-  box-sizing: border-box;
-}
-
-input,
-button {
-  color: black;
-}
-</style>

@@ -1,37 +1,35 @@
 <template>
-  <div class="container">
-    <div class="item">
-      <Search />
-    </div>
-    <div class="item">
-      <Console />
-    </div>
-  </div>
+  <v-container fluid>
+    <v-row>
+      <v-col
+        cols="12"
+        md="6"
+        order="2"
+        order-md="1"
+      >
+        <search />
+      </v-col>
+      <v-col
+        cols="12"
+        md="6"
+        order="1"
+        order-md="2"
+      >
+        <playlist />
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script>
-import Console from "./Console";
-import Search from "./Search";
+  import Search from './Search'
+  import Playlist from './Playlist'
 
-export default {
-  name: "Booth",
-  components: {
-    Console,
-    Search
+  export default {
+    name: 'Booth',
+    components: {
+      Search,
+      Playlist,
+    },
   }
-};
 </script>
-
-<style scoped>
-.container {
-  position: absolute;
-  width: 100%;
-}
-
-.item {
-  padding: 10px;
-  vertical-align: top;
-  display: inline-block;
-  width: 50%;
-}
-</style>

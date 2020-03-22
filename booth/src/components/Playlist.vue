@@ -1,24 +1,53 @@
 <template>
-  <div class="playlist">
-    <h3>Current playlist:</h3>
+  <div>
+    <h3>Playlist</h3>
+    <v-divider />
 
-    <ul class="playlist" v-if="playlist.length > 0">
-      <li v-for="item in playlist" :key="item.title">{{ item.title }}</li>
+    <ul class="playlist">
+      <li>{{ currentSong || "unknown" }}</li>
+      <li>{{ nextSong || "unkown" }}</li>
+      <li
+        v-for="item in playlist"
+        :key="item.title"
+      >
+        {{ item.title }}
+      </li>
     </ul>
-
-    <div v-else class="empty">
-      Playlist is empty.
-    </div>
   </div>
 </template>
 
 <script>
-import { mapState } from "vuex";
+  import { mapActions, mapState } from 'vuex'
 
-export default {
-  name: "Playlist",
-  computed: {
-    ...mapState(["playlist"])
+  export default {
+    name: 'Playlist',
+    data () {
+      return {
+        updateHandle: null,
+      }
+    },
+    computed: {
+      ...mapState(['currentSong', 'nextSong', 'playlist']),
+    },
+    mounted () {
+      this.update()
+      this.updateHandle = setInterval(this.update, 1000)
+    },
+    destroyed () {
+      if (this.updateHandle !== null) {
+        clearInterval(self.updateHandle)
+      }
+    },
+    methods: {
+      update () {
+        this.updateStatus()
+        this.updatePlaylist()
+      },
+
+      ...mapActions({
+        updateStatus: 'UPDATE_STATUS',
+        updatePlaylist: 'UPDATE_PLAYLIST',
+      }),
+    },
   }
-};
 </script>

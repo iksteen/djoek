@@ -1,22 +1,24 @@
-import Vue from "vue";
-import App from "./App.vue";
-import store from "./store";
+import Vue from 'vue'
+import App from './App.vue'
+import store from './store'
 
-import { domain, clientId, audience } from "../../auth-config.json";
+import { domain, clientId, audience } from '../../auth-config.json'
 
-import { Auth0Plugin } from "./auth";
+import { Auth0Plugin } from './plugins/auth'
+
+import { ApiPlugin } from './plugins/api'
+import vuetify from './plugins/vuetify'
 Vue.use(Auth0Plugin, {
   domain,
   clientId,
-  audience
-});
+  audience,
+})
+Vue.use(ApiPlugin)
 
-import { ApiPlugin } from "./api";
-Vue.use(ApiPlugin);
-
-Vue.config.productionTip = false;
+Vue.config.productionTip = false
 
 new Vue({
   store,
-  render: h => h(App)
-}).$mount("#app");
+  vuetify,
+  render: h => h(App),
+}).$mount('#app')
