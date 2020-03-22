@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
   player.addEventListener("pause", () => (control.textContent = playText));
   player.addEventListener("loadstart", () => (control.textContent = bufferText));
-  player.addEventListener("canplaythrough", () => {
+  player.addEventListener("canplay", () => {
     setTimeout(() => {
       if (!player.paused) {
         player.muted = false;
