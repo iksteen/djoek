@@ -7,13 +7,18 @@ document.addEventListener('DOMContentLoaded', (event) => {
   let control = document.getElementById("play");
   let currentSong = document.getElementById("current-song");
   let nextSong = document.getElementById("next-song");
+  let failed = false;
 
   function toggle() {
     if (player.paused) {
       localStorage.setItem("state", "play");
       player.src = "/mpd.ogg?" + Date.now();
       setTimeout(() => {
-        player.play().catch(() => (control.textContent = playText));
+        failed = false;
+        player.play().catch(() => {
+          failed = true;
+          control.textContent = playText;
+        });
         player.muted = true;
       }, 0);
     } else {
@@ -28,7 +33,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
   });
 
   player.addEventListener("pause", () => (control.textContent = playText));
-  player.addEventListener("loadstart", () => (control.textContent = bufferText));
+  player.addEventListener("loadstart", () => {
+    if (!failed) {
+      control.textContent = bufferText;
+    }
+  });
   player.addEventListener("canplay", () => {
     setTimeout(() => {
       if (!player.paused) {
