@@ -14,9 +14,15 @@
       <ul>
         <li v-for="result in results" :key="result.videoId">
           {{ result.title }} -
-          <a href="#" @click="download(result.videoId, true)">Add</a> -
+          <a href="#" @click.prevent="download(result.videoId, true)">
+            Add
+          </a>
+          -
           <span v-if="externalSearch">
-            <a href="#" @click="download(result.videoId, false)">Download</a> -
+            <a href="#" @click.prevent="download(result.videoId, false)">
+              Download
+            </a>
+            -
           </span>
           <a
             :href="`https://youtu.be/${result.videoId}`"
