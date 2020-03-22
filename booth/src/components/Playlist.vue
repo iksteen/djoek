@@ -3,24 +3,27 @@
     <h3>Playlist</h3>
     <v-divider />
 
-    <ul class="playlist">
-      <li>{{ currentSong || "unknown" }}</li>
-      <li>{{ nextSong || "unkown" }}</li>
-      <li
-        v-for="item in playlist"
-        :key="item.title"
-      >
-        {{ item.title }}
-      </li>
-    </ul>
+    <v-list class="mt-4">
+      <v-subheader>Now playing</v-subheader>
+      <playlist-item :title="currentSong" />
+      <v-subheader>Up next</v-subheader>
+      <playlist-item :title="nextSong" />
+      <playlist-item
+        v-for="(item, i) in playlist"
+        :key="i"
+        :title="item.title"
+      />
+    </v-list>
   </div>
 </template>
 
 <script>
   import { mapActions, mapState } from 'vuex'
+  import PlaylistItem from './PlaylistItem'
 
   export default {
     name: 'Playlist',
+    components: { PlaylistItem },
     data () {
       return {
         updateHandle: null,
