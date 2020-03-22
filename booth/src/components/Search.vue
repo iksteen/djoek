@@ -72,7 +72,7 @@ export default {
 
     async search(q, external = false) {
       this.pendingSearch = [q, external];
-2
+
       const { results, external: externalSearch } = await this.$api.search(
         q,
         external
