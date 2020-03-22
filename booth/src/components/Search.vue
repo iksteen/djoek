@@ -23,11 +23,15 @@
       </template>
     </v-text-field>
     &nbsp;
-    <div v-if="lastQuery">
-      <div
-        class="title"
-        v-if="lastQuery"
-      >
+    <div
+      v-if="lastQuery && !results.length"
+      class="subtitle-1"
+    >
+      <em>No results for {{ lastQuery }}.</em>
+    </div>
+
+    <div v-if="lastQuery && results.length > 0">
+      <div class="subtitle-1">
         Results for {{ lastQuery }}:
       </div>
       <search-result
