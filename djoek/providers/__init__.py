@@ -1,0 +1,34 @@
+from abc import ABC, abstractmethod
+from typing import List, Optional
+
+from pydantic.main import BaseModel
+
+
+class MetadataSchema(BaseModel):
+    title: str
+    tags: List[str]
+    extension: str
+
+
+class SearchResultSchema(BaseModel):
+    title: str
+    external_id: str
+    preview_url: Optional[str]
+
+
+class Provider(ABC):
+    @abstractmethod
+    async def get_metadata(self, content_id: str) -> MetadataSchema:
+        ...
+
+    @abstractmethod
+    async def download(self, content_id: str, path: str) -> None:
+        ...
+
+    @abstractmethod
+    def get_preview_url(self, content_id: str) -> Optional[str]:
+        ...
+
+    @abstractmethod
+    async def search(self, query: str) -> List[SearchResultSchema]:
+        ...

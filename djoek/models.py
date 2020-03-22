@@ -1,4 +1,5 @@
 from base64 import urlsafe_b64encode
+from typing import cast
 
 from peewee import AutoField, Model, TextField
 from peewee_asyncext import PooledPostgresqlExtDatabase
@@ -26,3 +27,11 @@ class Song(Model):
             .decode("utf-8")
         )
         return f"{basename}{self.extension}"
+
+    @property
+    def provider(self) -> str:
+        return cast(str, self.external_id.split(":", 1)[0])
+
+    @property
+    def content_id(self) -> str:
+        return cast(str, self.external_id.split(":", 1)[1])

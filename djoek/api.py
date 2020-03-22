@@ -1,19 +1,26 @@
-from typing import Any, Dict, List, Optional, cast
+import os
+import re
+from typing import List, Optional, cast
 
-import httpx
+import aiofiles
+import aiofiles.os
 from fastapi import Depends, FastAPI
 from mpd.asyncio import MPDClient
+from peewee import IntegrityError, fn
 from peewee_async import Manager
 from pydantic import BaseModel
 from starlette.requests import Request
 
 from djoek import settings
 from djoek.auth import require_auth
-from djoek.download import add_from_youtube
 from djoek.models import Song
 from djoek.player import Player, get_mpd_client
+from djoek.providers import SearchResultSchema
+from djoek.providers.registry import PROVIDERS
 
 app = FastAPI()
+
+WORD_RE = re.compile(r"\w+", re.UNICODE)
 
 
 async def get_manager(request: Request) -> Manager:
@@ -34,22 +41,17 @@ class PlaylistItemSchema(BaseModel):
 
 
 class LibraryAddSchema(BaseModel):
-    video_id: str
+    external_id: str
     enqueue: bool = True
 
 
 class SearchRequestSchema(BaseModel):
+    provider: str
     q: str
-    external: bool = False
-
-
-class SearchResultSchema(BaseModel):
-    title: str
-    video_id: str
 
 
 class SearchResponseSchema(BaseModel):
-    external: bool
+    provider: str
     results: List[SearchResultSchema]
 
 
@@ -72,6 +74,10 @@ async def playlist_list(
     return [PlaylistItemSchema(title=song.title) for song in player.queue]
 
 
+def edge_ngrams(key: str) -> List[str]:
+    return [key[0:i] for i in range(1, len(key) + 1)]
+
+
 @app.post("/library/", response_model=str, dependencies=[Depends(require_auth)])
 async def playlist_add(
     task: LibraryAddSchema,
@@ -79,7 +85,45 @@ async def playlist_add(
     mpd_client: MPDClient = Depends(get_mpd_client),
     player: Player = Depends(get_player),
 ) -> str:
-    song = await add_from_youtube(manager, task.video_id)
+    provider_key, content_id = task.external_id.split(":", 1)
+    provider = PROVIDERS[provider_key]
+
+    metadata = await provider.get_metadata(content_id)
+
+    keywords = [content_id]
+
+    for keyword in metadata.title.split():
+        keywords.append(keyword)
+        keyword = "".join(WORD_RE.findall(keyword))
+        keywords.extend([ngram for ngram in edge_ngrams(keyword) if ngram != keyword])
+
+    for tag in metadata.tags:
+        keywords.extend(edge_ngrams(tag))
+
+    search_value = fn.to_tsvector(" ".join(keywords))
+
+    song: Song
+
+    try:
+        async with manager.atomic():
+            song = await manager.create(
+                Song,
+                title=metadata.title,
+                tags=metadata.tags,
+                search_field=search_value,
+                external_id=task.external_id,
+                extension=metadata.extension,
+            )
+
+            song_path = os.path.join(settings.MUSIC_DIR, song.filename)
+            try:
+                await aiofiles.os.stat(song_path)
+            except FileNotFoundError:
+                await provider.download(content_id, song_path)
+    except IntegrityError:
+        song = await manager.get(Song, external_id=task.external_id)
+        song.search_field = search_value
+        await manager.update(song, only=["search_field"])
 
     await mpd_client.update()
     async for _ in mpd_client.idle(["update"]):
@@ -95,42 +139,24 @@ async def playlist_add(
 
 @app.post(
     "/search/",
-    response_model=SearchResponseSchema,
+    response_model=List[SearchResultSchema],
     dependencies=[Depends(require_auth)],
 )
 async def search(
     query: SearchRequestSchema, manager: Manager = Depends(get_manager)
-) -> Dict[str, Any]:
-    if not query.external:
+) -> List[SearchResultSchema]:
+    if query.provider == "local":
         songs = await manager.execute(
             Song.select().where(Song.search_field.match(query.q, plain=True))
         )
-        return {
-            "external": False,
-            "results": [
-                {"title": song.title, "video_id": song.external_id.split(":")[1]}
-                for song in songs
-            ],
-        }
+        return [
+            SearchResultSchema(
+                title=song.title,
+                external_id=song.external_id,
+                preview_url=PROVIDERS[song.provider].get_preview_url(song.content_id),
+            )
+            for song in songs
+        ]
 
-    async with httpx.AsyncClient() as client:
-        r = await client.get(
-            "https://www.googleapis.com/youtube/v3/search",
-            params={
-                "part": "snippet",
-                "maxResults": "10",
-                "q": query.q,
-                "type": "video",
-                "key": settings.GOOGLE_API_KEY,
-            },
-        )
-        result = r.json()
-
-    return {
-        "external": True,
-        "results": [
-            {"title": item["snippet"]["title"], "video_id": item["id"]["videoId"]}
-            for item in result["items"]
-            if item["id"]["kind"] == "youtube#video"
-        ],
-    }
+    provider = PROVIDERS[query.provider]
+    return await provider.search(query.q)

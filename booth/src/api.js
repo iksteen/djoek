@@ -37,19 +37,23 @@ const useApi = () => {
         return data;
       },
 
-      async download(videoId, enqueue = true) {
+      async download(externalId, enqueue = true) {
         await this.authRequest("post", "/api/library/", {
-          video_id: videoId,
+          external_id: externalId,
           enqueue
         });
       },
 
-      async search(query, external = false) {
+      async search(provider, query) {
         const { data } = await this.authRequest("post", "/api/search/", {
           q: query,
-          external
+          provider
         });
-        return data;
+        return data.map(({ title, external_id, preview_url }) => ({
+          title,
+          externalId: external_id,
+          previewUrl: preview_url
+        }));
       }
     }
   });

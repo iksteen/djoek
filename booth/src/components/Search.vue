@@ -5,32 +5,34 @@
       type="text"
       v-model="query"
       ref="query"
-      @keyup.enter="search(query, true)"
+      @keyup.enter="search('youtube', query)"
     />
     &nbsp;
-    <button @click="search(query, true)">Search YouTube</button>
+    <button @click="search('youtube', query)">Search YouTube</button>
     <div v-if="lastQuery">
       <h3 v-if="lastQuery">Results for {{ lastQuery }}:</h3>
       <ul>
-        <li v-for="result in results" :key="result.videoId">
+        <li v-for="result in results" :key="result.externalId">
           {{ result.title }} -
-          <a href="#" @click.prevent="download(result.videoId, true)">
+          <a href="#" @click.prevent="download(result.externalId, true)">
             Add
           </a>
-          -
-          <span v-if="externalSearch">
-            <a href="#" @click.prevent="download(result.videoId, false)">
+          <span v-if="provider !== 'local'">
+            -
+            <a href="#" @click.prevent="download(result.externalId, false)">
               Download
             </a>
-            -
           </span>
-          <a
-            :href="`https://youtu.be/${result.videoId}`"
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            [YouTube]
-          </a>
+          <span v-if="result.previewUrl">
+            -
+            <a
+              :href="result.previewUrl"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Preview
+            </a>
+          </span>
         </li>
       </ul>
     </div>
@@ -47,7 +49,7 @@ export default {
       query: "",
       lastQuery: "",
       results: [],
-      externalSearch: false,
+      provider: null,
       searchTimeout: null,
       pendingQuery: null
     };
@@ -65,7 +67,10 @@ export default {
         return;
       }
 
-      this.searchTimeout = setTimeout(() => this.search(this.query), 100);
+      this.searchTimeout = setTimeout(
+        () => this.search("local", this.query),
+        100
+      );
     }
   },
   methods: {
@@ -74,31 +79,26 @@ export default {
         clearTimeout(this.searchTimeout);
         this.searchTimeout = null;
       }
+      this.pendingSearch = null;
     },
 
-    async search(q, external = false) {
-      this.pendingSearch = [q, external];
+    async search(provider, q) {
+      this.pendingSearch = [provider, q];
 
-      const { results, external: externalSearch } = await this.$api.search(
-        q,
-        external
-      );
+      const results = await this.$api.search(provider, q);
 
       if (
         !this.pendingSearch ||
-        this.pendingSearch[0] !== q ||
-        this.pendingSearch[1] !== external
+        this.pendingSearch[0] !== provider ||
+        this.pendingSearch[1] !== q
       ) {
         return;
       }
       this.pendingSearch = null;
 
-      this.results = results.map(({ title, video_id }) => ({
-        title,
-        videoId: video_id
-      }));
+      this.results = results;
       this.lastQuery = q;
-      this.externalSearch = externalSearch;
+      this.provider = provider;
     },
 
     reset() {
@@ -108,9 +108,9 @@ export default {
       this.$refs.query.focus();
     },
 
-    async download(videoId, enqueue) {
+    async download(externalId, enqueue) {
       this.reset();
-      await this.$api.download(videoId, enqueue);
+      await this.$api.download(externalId, enqueue);
       this.updateStatus();
       this.updatePlaylist();
     },
