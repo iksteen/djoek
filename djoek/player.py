@@ -19,6 +19,7 @@ class Player:
     queue: List[Song]
     current_song: Optional[Song]
     next_song: Optional[Song]
+    recent: List[int]
 
     def __init__(self, manager: Manager):
         self.manager = manager
@@ -26,6 +27,7 @@ class Player:
         self.mpd_client = None
         self.current_song = None
         self.next_song = None
+        self.recent = []
 
     async def run(self) -> None:
         self.mpd_client = await get_mpd_client()
@@ -42,6 +44,12 @@ class Player:
     async def enqueue(self, song: Song) -> None:
         self.queue.append(song)
         await self.check_playlist()
+
+    def add_recent(self, song_id: int) -> None:
+        if song_id in self.recent:
+            self.recent.remove(song_id)
+        self.recent.append(song_id)
+        self.recent = self.recent[-settings.REMEMBER_RECENT :]
 
     async def check_playlist(self) -> None:
         if self.mpd_client is None:
@@ -60,9 +68,13 @@ class Player:
 
         if "songid" in status:
             self.current_song = await self.get_song_by_playlist_id(status["songid"])
+            if self.current_song:
+                self.add_recent(self.current_song.id)
 
         if "nextsongid" in status:
             self.next_song = await self.get_song_by_playlist_id(status["nextsongid"])
+            if self.next_song:
+                self.add_recent(self.next_song.id)
 
     async def get_song_by_playlist_id(self, playlist_song_id: str) -> Optional[Song]:
         if not self.mpd_client:
@@ -83,14 +95,21 @@ class Player:
             return self.queue.pop(0)
 
         while True:
-            song_ids = [
+            song_ids = {
                 song.id for song in await self.manager.execute(Song.select(Song.id))
-            ]
+            }
             if not song_ids:
                 return None
 
-            song_id = random.choice(song_ids)
+            if len(song_ids) > 1:
+                song_ids -= set(
+                    self.recent[-min(len(self.recent), len(song_ids) - 1) :]
+                )
+
+            song_id = random.choice(tuple(song_ids))
             try:
-                return cast(Song, await self.manager.get(Song, id=song_id))
+                song: Song = await self.manager.get(Song, id=song_id)
+                self.add_recent(song_id)
+                return song
             except Song.DoesNotExist:
                 pass
