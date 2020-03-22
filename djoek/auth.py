@@ -24,24 +24,30 @@ class Authenticator:
     def __init__(self) -> None:
         self._keyset_future = None
 
-    async def get_keys(self) -> Dict[str, Any]:
+    async def get_keys(self, *, force: bool = False) -> Dict[str, Any]:
+        loop = asyncio.get_event_loop()
+
+        if self._keyset_future is not None and not force:
+            return await self._keyset_future
+        self._keyset_future = loop.create_future()
+
         async with httpx.AsyncClient() as client:
             r = await client.get(
                 f"https://{settings.AUTH0_DOMAIN}/.well-known/jwks.json"
             )
         r.raise_for_status()
 
-        keyset = r.json()
+        keyset_data = r.json()
 
-        return {
+        keyset = {
             key["kid"]: json.dumps(key, sort_keys=True)
-            for key in keyset["keys"]
+            for key in keyset_data["keys"]
             if key["use"] == "sig" and key["kty"] == "RSA" and key["alg"] == "RS256"
         }
+        self._keyset_future.set_result(keyset)
+        return keyset
 
     async def verify(self, auth_header: str) -> None:
-        loop = asyncio.get_event_loop()
-
         parts = auth_header.split()
         if len(parts) != 2 or parts[0] != "Bearer":
             raise AuthenticationFailed("invalid authorization header")
@@ -61,14 +67,13 @@ class Authenticator:
 
         key_id = token_header["kid"]
 
-        if self._keyset_future is None:
-            self._keyset_future = loop.create_future()
-            self._keyset_future.set_result(await self.get_keys())
-        keyset = await self._keyset_future
-
+        keyset = await self.get_keys()
         key = keyset.get(key_id)
         if key is None:
-            raise AuthenticationFailed("key not found")
+            keyset = await self.get_keys(force=True)
+            key = keyset.get(key_id)
+            if key is None:
+                raise AuthenticationFailed("key not found")
 
         try:
             decoded_token = jose.jwt.decode(
