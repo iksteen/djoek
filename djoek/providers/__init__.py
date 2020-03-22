@@ -17,6 +17,8 @@ class SearchResultSchema(BaseModel):
 
 
 class Provider(ABC):
+    key: str
+
     @abstractmethod
     async def get_metadata(self, content_id: str) -> MetadataSchema:
         ...

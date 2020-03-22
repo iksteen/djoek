@@ -9,6 +9,7 @@
     />
     &nbsp;
     <button @click="search('youtube', query)">Search YouTube</button>
+    <button @click="search('soundcloud', query)">Search SoundCloud</button>
     <div v-if="lastQuery">
       <h3 v-if="lastQuery">Results for {{ lastQuery }}:</h3>
       <ul>
