@@ -6,7 +6,7 @@ from psycopg2.extensions import parse_dsn
 
 import djoek.settings as settings
 from djoek.api import app
-from djoek.models import Song, database
+from djoek.models import database
 from djoek.player import Player
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,6 @@ async def on_startup() -> None:
     db_config = parse_dsn(settings.DB_URI)
     db_name = db_config.pop("dbname")
     database.init(db_name, **db_config)
-    database.create_tables([Song])
     database.set_allow_sync(False)
 
     app.state.manager = manager = Manager(database)

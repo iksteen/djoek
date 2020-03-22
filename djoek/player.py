@@ -1,4 +1,6 @@
+import os
 import random
+from base64 import urlsafe_b64decode
 from typing import List, Optional, cast
 
 from mpd.asyncio import MPDClient
@@ -60,7 +62,7 @@ class Player:
         if int(status["playlistlength"]) < 2:
             song = await self.get_next_song()
             if song:
-                await self.mpd_client.addid(f"{song.id}.m4a")
+                await self.mpd_client.addid(song.filename)
             return
 
         if status["state"] == "stop":
@@ -84,9 +86,15 @@ class Player:
         if not song_data:
             return None
 
-        song_id = int(song_data[0]["file"].split(".")[0])
+        basename, extension = os.path.splitext(song_data[0]["file"])
+        song_external_id = urlsafe_b64decode(f"{basename}==")
         try:
-            return cast(Song, await self.manager.get(Song, id=song_id))
+            return cast(
+                Song,
+                await self.manager.get(
+                    Song, external_id=song_external_id, extension=extension
+                ),
+            )
         except Song.DoesNotExist:
             return None
 

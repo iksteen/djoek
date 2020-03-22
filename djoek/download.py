@@ -5,6 +5,7 @@ import subprocess
 from typing import Any, Dict, List, cast
 
 import aiofiles
+import aiofiles.os
 import httpx
 from peewee import IntegrityError, fn
 from peewee_async import Manager
@@ -67,14 +68,18 @@ async def add_from_youtube(manager: Manager, vid: str) -> Song:
                 tags=tags,
                 search_field=search_value,
                 external_id=external_id,
+                extension=".m4a",
             )
 
-            data = await download_video(vid)
-
-            async with aiofiles.open(
-                os.path.join(settings.MUSIC_DIR, f"{song.id}.m4a"), "wb"
-            ) as f:
-                await f.write(data)
+            song_path = os.path.join(settings.MUSIC_DIR, song.filename)
+            try:
+                await aiofiles.os.stat(song_path)
+            except FileNotFoundError:
+                data = await download_video(vid)
+                async with aiofiles.open(
+                    os.path.join(settings.MUSIC_DIR, song.filename), "wb"
+                ) as f:
+                    await f.write(data)
         return song
     except IntegrityError:
         song = await manager.get(Song, external_id=external_id)

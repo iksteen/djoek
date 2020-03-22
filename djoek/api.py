@@ -83,7 +83,7 @@ async def playlist_add(
 
     await mpd_client.update()
     async for _ in mpd_client.idle(["update"]):
-        f = await mpd_client.find("file", f"{song.id}.m4a")
+        f = await mpd_client.find("file", song.filename)
         if f:
             break
 
