@@ -7,4 +7,5 @@ USER app
 ADD poetry.lock pyproject.toml migrate.py /app/
 ADD djoek /app/djoek/
 RUN poetry install
-CMD poetry run python migrate.py && poetry run uvicorn --host 0.0.0.0 djoek:app
+CMD poetry run python migrate.py && \
+	poetry run uvicorn --host 0.0.0.0 --log-level warning djoek:app
