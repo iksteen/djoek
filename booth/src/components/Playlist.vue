@@ -1,7 +1,12 @@
 <template>
   <div>
-    <div class="display-1">
-      Playlist
+    <div class="d-flex">
+      <div class="display-1">
+        Playlist
+      </div>
+      <div class="ml-auto">
+        <stream-player />
+      </div>
     </div>
     <v-divider />
 
@@ -22,10 +27,14 @@
 <script>
   import { mapActions, mapState } from 'vuex'
   import PlaylistItem from './PlaylistItem'
+  import StreamPlayer from './StreamPlayer'
 
   export default {
     name: 'Playlist',
-    components: { PlaylistItem },
+    components: {
+      PlaylistItem,
+      StreamPlayer,
+    },
     data () {
       return {
         updateHandle: null,
