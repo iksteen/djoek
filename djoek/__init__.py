@@ -1,8 +1,10 @@
 import asyncio
 import logging
+import os
 
 from peewee_async import Manager
 from psycopg2.extensions import parse_dsn
+from starlette.staticfiles import StaticFiles
 
 import djoek.settings as settings
 from djoek.api import app
@@ -31,3 +33,8 @@ async def on_startup() -> None:
 async def on_shutdown() -> None:
     app.state.manager.database.close()
     app.state.mpd_client.disconnect()
+
+
+if settings.SERVE_PLAYER:
+    player_path = os.path.join(os.path.split(__file__)[0], "..", "player")
+    app.mount("/player", StaticFiles(directory=player_path), name="player")

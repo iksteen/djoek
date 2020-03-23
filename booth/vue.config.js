@@ -10,14 +10,11 @@ module.exports = {
           '^/api/': '/',
         },
       },
+      '^/player': {
+        target: 'http://localhost:8000',
+      },
       '^/mpd.ogg$': {
         target: 'http://localhost:8001/mpd.ogg',
-      },
-      '^/player': {
-        target: 'http://localhost:8002',
-        pathRewrite: {
-          '^/player': '',
-        },
       },
     },
   },
