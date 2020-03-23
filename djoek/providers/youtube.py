@@ -25,7 +25,10 @@ class YouTubeProvider(Provider):
         metadata = r.json()
         snippet = metadata["items"][0]["snippet"]
         return MetadataSchema(
-            **snippet, extension=".m4a", preview_url=f"https://youtu.be/{content_id}"
+            title=snippet["title"],
+            tags=snippet.get("tags", []),
+            extension=".m4a",
+            preview_url=f"https://youtu.be/{content_id}",
         )
 
     async def download(self, content_id: str, path: str) -> None:
