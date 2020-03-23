@@ -1,4 +1,5 @@
 import asyncio
+import html
 import subprocess
 from typing import List
 
@@ -58,11 +59,11 @@ class YouTubeProvider(Provider):
                     "key": settings.GOOGLE_API_KEY,
                 },
             )
-            result = r.json()
+        result = r.json()
 
         return [
             SearchResultSchema(
-                title=item["snippet"]["title"],
+                title=html.unescape(item["snippet"]["title"]),
                 external_id=f"{self.key}:{item['id']['videoId']}",
                 preview_url=f"https://youtu.be/{item['id']['videoId']}",
             )
