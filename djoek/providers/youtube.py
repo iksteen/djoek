@@ -1,5 +1,6 @@
 import asyncio
 import html
+import re
 import subprocess
 from typing import List
 
@@ -8,6 +9,10 @@ import httpx
 
 import djoek.settings as settings
 from djoek.providers import MetadataSchema, Provider, SearchResultSchema
+
+YOUTUBE_URL_RE = re.compile(
+    r"^(?:https?://(?:[^/]+.)?youtube.com/watch\?(?:v=|.*&v=)|https?://youtu.be/|youtube:)([a-zA-Z0-9_-]{11})"
+)
 
 
 class YouTubeProvider(Provider):
@@ -63,6 +68,18 @@ class YouTubeProvider(Provider):
             await f.write(data)
 
     async def search(self, query: str) -> List[SearchResultSchema]:
+        m = YOUTUBE_URL_RE.match(query)
+        if m is not None:
+            content_id = m.group(1)
+            metadata = await self.get_metadata(content_id)
+            return [
+                SearchResultSchema(
+                    title=metadata.title,
+                    external_id=f"{self.key}:{content_id}",
+                    preview_url=f"https://youtu.be/{content_id}",
+                )
+            ]
+
         async with httpx.AsyncClient() as client:
             r = await client.get(
                 "https://www.googleapis.com/youtube/v3/search",
