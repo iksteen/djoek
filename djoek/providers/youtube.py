@@ -14,20 +14,35 @@ class YouTubeProvider(Provider):
     key = "youtube"
 
     async def get_metadata(self, content_id: str) -> MetadataSchema:
+        tags: List[str]
         async with httpx.AsyncClient() as client:
             r = await client.get(
                 "https://www.googleapis.com/youtube/v3/videos",
                 params={
-                    "part": "snippet,contentDetails",
+                    "part": "snippet",
                     "id": content_id,
                     "key": settings.GOOGLE_API_KEY,
                 },
             )
-        metadata = r.json()
-        snippet = metadata["items"][0]["snippet"]
+            if r.status_code == 403:
+                # Fall back to oEmbed. Lacks tags, still better than failing.
+                r = await client.get(
+                    "https://noembed.com/embed",
+                    params={"url": f"https://youtu.be/{content_id}"},
+                )
+                r.raise_for_status()
+                title = r.json()["title"]
+                tags = []
+            else:
+                r.raise_for_status()
+                metadata = r.json()
+                snippet = metadata["items"][0]["snippet"]
+                title = snippet["title"]
+                tags = snippet.get("tags", [])
+
         return MetadataSchema(
-            title=snippet["title"],
-            tags=snippet.get("tags", []),
+            title=title,
+            tags=tags,
             extension=".m4a",
             preview_url=f"https://youtu.be/{content_id}",
         )
