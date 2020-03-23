@@ -123,8 +123,9 @@ async def playlist_add(
                 await provider.download(content_id, metadata, song_path)
     except IntegrityError:
         song = await manager.get(Song, external_id=task.external_id)
+        song.title = metadata.title
         song.search_field = search_value
-        await manager.update(song, only=["search_field"])
+        await manager.update(song, only=["title", "search_field"])
 
     await mpd_client.update()
     async for _ in mpd_client.idle(["update"]):
