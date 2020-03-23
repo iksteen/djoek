@@ -41,15 +41,16 @@ class SoundcloudProvider(Provider):
             preview_url=metadata["permalink_url"],
         )
 
-    async def download(self, content_id: str, path: str) -> None:
-        metadata = await self.get_track_info(content_id)
+    async def download(
+        self, content_id: str, metadata: MetadataSchema, path: str
+    ) -> None:
         p = await asyncio.create_subprocess_exec(
             "youtube-dl",
             "-f",
             "mp3",
             "-o",
             "-",
-            metadata["permalink_url"],
+            metadata.preview_url,
             stdout=subprocess.PIPE,
         )
         data, _ = await p.communicate()

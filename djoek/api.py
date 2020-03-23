@@ -120,7 +120,7 @@ async def playlist_add(
             try:
                 await aiofiles.os.stat(song_path)
             except FileNotFoundError:
-                await provider.download(content_id, song_path)
+                await provider.download(content_id, metadata, song_path)
     except IntegrityError:
         song = await manager.get(Song, external_id=task.external_id)
         song.search_field = search_value

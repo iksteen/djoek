@@ -52,7 +52,9 @@ class YouTubeProvider(Provider):
             preview_url=f"https://youtu.be/{content_id}",
         )
 
-    async def download(self, content_id: str, path: str) -> None:
+    async def download(
+        self, content_id: str, metadata: MetadataSchema, path: str
+    ) -> None:
         p = await asyncio.create_subprocess_exec(
             "youtube-dl",
             "-f",

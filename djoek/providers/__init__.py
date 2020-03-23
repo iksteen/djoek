@@ -25,7 +25,9 @@ class Provider(ABC):
         ...
 
     @abstractmethod
-    async def download(self, content_id: str, path: str) -> None:
+    async def download(
+        self, content_id: str, metadata: MetadataSchema, path: str
+    ) -> None:
         ...
 
     @abstractmethod
