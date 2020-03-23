@@ -43,19 +43,28 @@
     computed: {
       ...mapState(['currentSong', 'nextSong', 'playlist']),
     },
-    mounted () {
+    created () {
       this.update()
-      this.updateHandle = setInterval(this.update, 1000)
     },
-    destroyed () {
+    beforeDestroy () {
       if (this.updateHandle !== null) {
-        clearInterval(self.updateHandle)
+        clearTimeout(this.updateHandle)
       }
     },
     methods: {
-      update () {
-        this.updateStatus()
-        this.updatePlaylist()
+      async update () {
+        this.updateHandle = null
+        try {
+          await Promise.all([
+            this.updateStatus(),
+            this.updatePlaylist(),
+          ])
+        } finally {
+          this.updateHandle = setTimeout(
+            () => this.update(),
+            1000,
+          )
+        }
       },
 
       ...mapActions({
