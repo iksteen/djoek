@@ -9,6 +9,18 @@ import djoek.settings as settings
 from djoek.providers import MetadataSchema, Provider, SearchResultSchema
 
 
+def get_title(item: Dict[str, Any]) -> str:
+    title: str = item["title"]
+    artist = (item.get("publisher_metadata") or {}).get("artist")
+    if artist:
+        return f"{artist} - {title}"
+    user = (item.get("user") or {}).get("username")
+    if user:
+        return f"{user} - {title}"
+    else:
+        return title
+
+
 class SoundcloudProvider(Provider):
     key = "soundcloud"
 
@@ -23,7 +35,7 @@ class SoundcloudProvider(Provider):
     async def get_metadata(self, content_id: str) -> MetadataSchema:
         metadata = await self.get_track_info(content_id)
         return MetadataSchema(
-            title=metadata["title"],
+            title=get_title(metadata),
             tags=metadata["tag_list"].split(),
             extension=".mp3",
             preview_url=metadata["permalink_url"],
@@ -48,20 +60,22 @@ class SoundcloudProvider(Provider):
     async def search(self, query: str) -> List[SearchResultSchema]:
         async with httpx.AsyncClient() as client:
             r = await client.get(
-                "https://api-v2.soundcloud.com/search",
+                "https://api-v2.soundcloud.com/search/tracks",
                 params={
                     "q": query,
-                    "limit": 10,
+                    "limit": 25,
                     "client_id": settings.SOUNDCLOUD_CLIENT_ID,
                 },
             )
-            result = r.json()
+        r.raise_for_status()
+        result = r.json()
 
         return [
             SearchResultSchema(
-                title=item["title"],
+                title=get_title(item),
                 external_id=f"{self.key}:{item['id']}",
                 preview_url=item["permalink_url"],
             )
             for item in result["collection"]
-        ]
+            if item["policy"] != "SNIP"
+        ][:10]
