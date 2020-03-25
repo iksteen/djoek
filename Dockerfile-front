@@ -1,11 +1,11 @@
 FROM node:lts
-ADD auth-config.json /app/auth-config.json
-ADD booth /app/booth
+COPY auth-config.json /app/auth-config.json
+COPY booth /app/booth
 WORKDIR /app/booth
 RUN yarn install && yarn build
 
 FROM nginx:latest
-ADD conf/default.conf /etc/nginx/conf.d/default.conf
-ADD player /player/
+COPY conf/default.conf /etc/nginx/conf.d/default.conf
+COPY player /player/
 COPY --from=0 /app/booth/dist/ /booth/
 
