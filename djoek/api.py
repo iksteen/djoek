@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 from typing import List, Optional, cast
@@ -121,6 +122,10 @@ async def playlist_add(
                 await aiofiles.os.stat(song_path)
             except FileNotFoundError:
                 await provider.download(content_id, metadata, song_path)
+                process = await asyncio.create_subprocess_exec(
+                    "loudgain", "-s", "i", song_path
+                )
+                await process.communicate()
     except IntegrityError:
         song = await manager.get(Song, external_id=task.external_id)
         song.title = metadata.title

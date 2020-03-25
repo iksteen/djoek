@@ -1,5 +1,7 @@
 FROM python:3.8
 RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+ADD https://github.com/Moonbase59/loudgain/raw/v0.6.8/bin/loudgain.static /usr/local/bin/loudgain
+RUN chmod 755 /usr/local/bin/loudgain
 RUN pip install poetry
 RUN useradd -ms /bin/bash app
 RUN mkdir /app && chown app:app /app
