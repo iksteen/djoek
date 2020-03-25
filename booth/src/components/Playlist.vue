@@ -4,7 +4,8 @@
       <div class="display-1">
         Playlist
       </div>
-      <div class="ml-auto">
+      <div class="ml-auto d-flex">
+        <stream-caster />
         <stream-player />
       </div>
     </div>
@@ -27,12 +28,14 @@
 <script>
   import { mapActions, mapState } from 'vuex'
   import PlaylistItem from './PlaylistItem'
+  import StreamCaster from './StreamCaster'
   import StreamPlayer from './StreamPlayer'
 
   export default {
     name: 'Playlist',
     components: {
       PlaylistItem,
+      StreamCaster,
       StreamPlayer,
     },
     data () {
