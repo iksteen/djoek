@@ -2,6 +2,8 @@
   <v-card
     class="mx-auto mt-4"
     outlined
+    :disabled="disabled"
+    :loading="loading"
   >
     <v-card-text
       class="subtitle-1"
@@ -56,6 +58,8 @@
     props: {
       title: String,
       provider: String,
+      disabled: Boolean,
+      loading: Boolean,
     },
   }
 </script>

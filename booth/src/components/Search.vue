@@ -29,16 +29,24 @@
     >
       <em>No results for {{ lastQuery }}.</em>
     </div>
+    <v-alert
+      v-if="error"
+      type="error"
+    >
+      Failed to download the song: {{ error }}
+    </v-alert>
 
     <div v-if="lastQuery && results.length > 0">
       <div class="subtitle-1">
         Results for {{ lastQuery }}:
       </div>
       <search-result
-        v-for="(result, i) in results"
-        :key="i"
+        v-for="result in results"
+        :key="`${result.provider}:${result.externalId}`"
         :title="result.title"
-        :provider="provider"
+        :provider="result.provider"
+        :disabled="!!downloading"
+        :loading="downloading === result.externalId"
         @download="download(result.externalId, false)"
         @enqueue="download(result.externalId, true)"
         @preview="preview(result.previewUrl)"
@@ -65,14 +73,17 @@
         query: '',
         lastQuery: '',
         results: [],
-        provider: null,
         searchTimeout: null,
         pendingQuery: null,
+        downloading: null,
+        error: null,
       }
     },
     watch: {
       query (query) {
         this.cancelSearchTimeout()
+        this.downloading = null
+        this.error = null
 
         if (!query) {
           this.results = []
@@ -116,23 +127,34 @@
         }
         this.pendingSearch = null
 
-        this.results = results
+        this.results = results.map(result => ({
+          ...result,
+          provider,
+        }))
         this.lastQuery = q
-        this.provider = provider
       },
 
       reset () {
         this.query = ''
         this.lastQuery = ''
         this.results = []
+        this.downloading = null
+        this.error = null
         this.$refs.query.focus()
       },
 
       async download (externalId, enqueue) {
-        this.reset()
-        await this.$api.download(externalId, enqueue)
-        this.updateStatus()
-        this.updatePlaylist()
+        this.error = null
+        this.downloading = externalId
+        try {
+          await this.$api.download(externalId, enqueue)
+          this.reset()
+          this.updateStatus()
+          this.updatePlaylist()
+        } catch (e) {
+          this.downloading = null
+          this.error = e
+        }
       },
 
       preview (url) {
