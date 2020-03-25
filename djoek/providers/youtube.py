@@ -1,10 +1,9 @@
-import asyncio
 import html
 import re
-import subprocess
 from typing import List
 
 import aiofiles
+import asyncpipe
 import httpx
 
 import djoek.settings as settings
@@ -48,26 +47,37 @@ class YouTubeProvider(Provider):
         return MetadataSchema(
             title=title,
             tags=tags,
-            extension=".m4a",
+            extension=".mp3",
             preview_url=f"https://youtu.be/{content_id}",
         )
 
     async def download(
         self, content_id: str, metadata: MetadataSchema, path: str
     ) -> None:
-        p = await asyncio.create_subprocess_exec(
+        pipe = asyncpipe.PipeBuilder(
             "youtube-dl",
             "-f",
             "m4a",
             "-o",
             "-",
             f"https://www.youtube.com/watch?v={content_id}",
-            stdout=subprocess.PIPE,
         )
-        data, _ = await p.communicate()
+        pipe.chain(
+            "ffmpeg",
+            "-i",
+            "pipe:",
+            "-codec:a",
+            "libmp3lame",
+            "-qscale:a",
+            "2",
+            "-f",
+            "mp3",
+            "-",
+        )
+        result = await pipe.call_async()
 
         async with aiofiles.open(path, "wb") as f:
-            await f.write(data)
+            await f.write(result[-1].stdout)
 
     async def search(self, query: str) -> List[SearchResultSchema]:
         m = YOUTUBE_URL_RE.match(query)
