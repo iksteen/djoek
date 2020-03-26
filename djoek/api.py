@@ -125,32 +125,33 @@ async def playlist_add(
 
     song: Song
 
-    try:
-        async with manager.atomic():
-            song = await manager.create(
-                Song,
-                title=metadata.title,
-                tags=metadata.tags,
-                search_field=search_value,
-                external_id=task.external_id,
-                extension=metadata.extension,
-                preview_url=metadata.preview_url,
+    async with manager.atomic():
+        try:
+            async with manager.atomic():
+                song = await manager.create(
+                    Song,
+                    title=metadata.title,
+                    tags=metadata.tags,
+                    search_field=search_value,
+                    external_id=task.external_id,
+                    extension=metadata.extension,
+                    preview_url=metadata.preview_url,
+                )
+                await download(provider, content_id, metadata, song)
+        except IntegrityError:
+            song = await manager.get(Song, external_id=task.external_id)
+            song.title = metadata.title
+            song.search_field = search_value
+            await asyncio.gather(
+                manager.update(song, only=["title", "search_field"]),
+                download(provider, content_id, metadata, song),
             )
-            await download(provider, content_id, metadata, song)
-    except IntegrityError:
-        song = await manager.get(Song, external_id=task.external_id)
-        song.title = metadata.title
-        song.search_field = search_value
-        await asyncio.gather(
-            manager.update(song, only=["title", "search_field"]),
-            download(provider, content_id, metadata, song),
-        )
 
-    try:
-        await asyncio.wait_for(wait_for_song(song), timeout=5.0)
-    except asyncio.TimeoutError:
-        logger.warning("Timed out waiting for %s", song.filename)
-        raise HTTPException(status_code=500, detail="Song did not appear")
+        try:
+            await asyncio.wait_for(wait_for_song(song), timeout=5.0)
+        except asyncio.TimeoutError:
+            logger.warning("Timed out waiting for %s", song.filename)
+            raise HTTPException(status_code=500, detail="Song did not appear")
 
     if task.enqueue:
         await player.enqueue(song)
