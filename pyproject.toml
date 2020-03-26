@@ -5,7 +5,7 @@ description = ""
 authors = ["Ingmar Steen <iksteen@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.7"
 python-mpd2 = "^1.0.0"
 peewee-async = "^0.7.0"
 fastapi = "^0.52.0"
