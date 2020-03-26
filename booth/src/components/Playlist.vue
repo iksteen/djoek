@@ -9,7 +9,7 @@
         <stream-player />
       </div>
     </div>
-    <v-divider class="mb-6" />
+    <v-divider class="mb-4" />
 
     <v-subheader class="px-0">Now playing</v-subheader>
     <playlist-item :title="currentSong" />
