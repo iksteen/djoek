@@ -1,23 +1,20 @@
+import logging
 import os
 import random
 from base64 import urlsafe_b64decode
 from typing import List, Optional, cast
 
-from mpd.asyncio import MPDClient
 from peewee_async import Manager
 
 from djoek import settings
 from djoek.models import Song
+from djoek.mpdclient import MPDClient, MPDCommandError
 
-
-async def get_mpd_client() -> MPDClient:
-    mpd_client = MPDClient()
-    await mpd_client.connect(settings.MPD_HOST)
-    return mpd_client
+logger = logging.getLogger(__name__)
 
 
 class Player:
-    mpd_client: Optional[MPDClient]
+    mpd_client: MPDClient
     queue: List[Song]
     current_song: Optional[Song]
     next_song: Optional[Song]
@@ -26,22 +23,24 @@ class Player:
     def __init__(self, manager: Manager):
         self.manager = manager
         self.queue = []
-        self.mpd_client = None
+        self.mpd_client = MPDClient(settings.MPD_HOST)
         self.current_song = None
         self.next_song = None
         self.recent = []
 
     async def run(self) -> None:
-        self.mpd_client = await get_mpd_client()
-        await self.mpd_client.random(0)
-        await self.mpd_client.repeat(0)
-        await self.mpd_client.single(0)
-        await self.mpd_client.consume(1)
+        async with self.mpd_client:
+            self.mpd_client = self.mpd_client
+            await self.mpd_client.execute("random 0")
+            await self.mpd_client.execute("repeat 0")
+            await self.mpd_client.execute("single 0")
+            await self.mpd_client.execute("consume 1")
 
-        await self.check_playlist()
-
-        async for _ in self.mpd_client.idle(["playlist", "player"]):
             await self.check_playlist()
+
+            while True:
+                await self.mpd_client.execute("idle playlist update")
+                await self.check_playlist()
 
     async def enqueue(self, song: Song) -> None:
         self.queue.append(song)
@@ -54,19 +53,23 @@ class Player:
         self.recent = self.recent[-settings.REMEMBER_RECENT :]
 
     async def check_playlist(self) -> None:
-        if self.mpd_client is None:
-            return
-
-        status = await self.mpd_client.status()
+        status = await self.mpd_client.execute("status")
 
         if int(status["playlistlength"]) < 2:
-            song = await self.get_next_song()
-            if song:
-                await self.mpd_client.addid(song.filename)
-            return
+            while True:
+                song = await self.get_next_song()
+                if not song:
+                    break
 
-        if status["state"] == "stop":
-            await self.mpd_client.play()
+                try:
+                    await self.mpd_client.execute(f"addid {song.filename}")
+                except MPDCommandError:
+                    logger.exception("Failed to add song")
+                    continue
+                return
+
+        if status["state"] != "play":
+            await self.mpd_client.execute("play")
 
         if "songid" in status:
             self.current_song = await self.get_song_by_playlist_id(status["songid"])
@@ -79,14 +82,11 @@ class Player:
                 self.add_recent(self.next_song.id)
 
     async def get_song_by_playlist_id(self, playlist_song_id: str) -> Optional[Song]:
-        if not self.mpd_client:
-            return None
-
-        song_data = await self.mpd_client.playlistid(playlist_song_id)
+        song_data = await self.mpd_client.execute(f"playlistid {playlist_song_id}")
         if not song_data:
             return None
 
-        basename, extension = os.path.splitext(song_data[0]["file"])
+        basename, extension = os.path.splitext(song_data["file"])
         song_external_id = urlsafe_b64decode(f"{basename}==")
         try:
             return cast(

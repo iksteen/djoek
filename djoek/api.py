@@ -1,12 +1,12 @@
 import asyncio
+import logging
 import os
 import re
 from typing import List, Optional, cast
 
 import aiofiles
 import aiofiles.os
-from fastapi import Depends, FastAPI
-from mpd.asyncio import MPDClient
+from fastapi import Depends, FastAPI, HTTPException
 from peewee import IntegrityError, fn
 from peewee_async import Manager
 from pydantic import BaseModel
@@ -15,12 +15,14 @@ from starlette.requests import Request
 from djoek import settings
 from djoek.auth import require_auth
 from djoek.models import Song
-from djoek.player import Player, get_mpd_client
+from djoek.mpdclient import MPDClient
+from djoek.player import Player
 from djoek.providers import MetadataSchema, Provider, SearchResultSchema
 from djoek.providers.registry import PROVIDERS
 
 app = FastAPI()
 
+logger = logging.getLogger(__name__)
 WORD_RE = re.compile(r"\w+", re.UNICODE)
 
 
@@ -79,6 +81,13 @@ def edge_ngrams(key: str) -> List[str]:
     return [key[0:i] for i in range(1, len(key) + 1)]
 
 
+async def wait_for_song(song: Song) -> None:
+    async with MPDClient(settings.MPD_HOST) as mpd_client:
+        await mpd_client.execute(f"update {song.filename}")
+        while not await mpd_client.execute(f"find file {song.filename}"):
+            await mpd_client.execute("idle update")
+
+
 async def download(
     provider: Provider, content_id: str, metadata: MetadataSchema, song: Song
 ) -> None:
@@ -95,7 +104,6 @@ async def download(
 async def playlist_add(
     task: LibraryAddSchema,
     manager: Manager = Depends(get_manager),
-    mpd_client: MPDClient = Depends(get_mpd_client),
     player: Player = Depends(get_player),
 ) -> str:
     provider_key, content_id = task.external_id.split(":", 1)
@@ -138,11 +146,11 @@ async def playlist_add(
             download(provider, content_id, metadata, song),
         )
 
-    await mpd_client.update()
-    async for _ in mpd_client.idle(["update"]):
-        f = await mpd_client.find("file", song.filename)
-        if f:
-            break
+    try:
+        await asyncio.wait_for(wait_for_song(song), timeout=5.0)
+    except asyncio.TimeoutError:
+        logger.warning("Timed out waiting for %s", song.filename)
+        raise HTTPException(status_code=500, detail="Song did not appear")
 
     if task.enqueue:
         await player.enqueue(song)

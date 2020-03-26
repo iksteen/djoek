@@ -1,12 +1,13 @@
+import asyncio
 import os
 
 import peewee
-from mpd import MPDClient
 from psycopg2.errors import UndefinedColumn
 from psycopg2.extensions import parse_dsn
 
 import djoek.settings as settings
 from djoek.models import Song, database
+from djoek.mpdclient import MPDClient
 
 
 def migrate_extension() -> None:
@@ -27,10 +28,11 @@ def migrate_extension() -> None:
             else:
                 os.unlink(old_path)
 
-    client = MPDClient()
-    client.connect(settings.MPD_HOST, 6600)
-    client.update()
-    client.idle("update")
+    async def update() -> None:
+        async with MPDClient(settings.MPD_HOST) as client:
+            await client.execute("update")
+
+    asyncio.run(update())
 
 
 def migrate_preview_url() -> None:
