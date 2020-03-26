@@ -16,7 +16,7 @@ from djoek import settings
 from djoek.auth import require_auth
 from djoek.models import Song
 from djoek.player import Player, get_mpd_client
-from djoek.providers import SearchResultSchema
+from djoek.providers import MetadataSchema, Provider, SearchResultSchema
 from djoek.providers.registry import PROVIDERS
 
 app = FastAPI()
@@ -79,6 +79,18 @@ def edge_ngrams(key: str) -> List[str]:
     return [key[0:i] for i in range(1, len(key) + 1)]
 
 
+async def download(
+    provider: Provider, content_id: str, metadata: MetadataSchema, song: Song
+) -> None:
+    song_path = os.path.join(settings.MUSIC_DIR, song.filename)
+    try:
+        await aiofiles.os.stat(song_path)
+    except FileNotFoundError:
+        await provider.download(content_id, metadata, song_path)
+        process = await asyncio.create_subprocess_exec("loudgain", "-s", "i", song_path)
+        await process.communicate()
+
+
 @app.post("/library/", response_model=str, dependencies=[Depends(require_auth)])
 async def playlist_add(
     task: LibraryAddSchema,
@@ -116,21 +128,15 @@ async def playlist_add(
                 extension=metadata.extension,
                 preview_url=metadata.preview_url,
             )
-
-            song_path = os.path.join(settings.MUSIC_DIR, song.filename)
-            try:
-                await aiofiles.os.stat(song_path)
-            except FileNotFoundError:
-                await provider.download(content_id, metadata, song_path)
-                process = await asyncio.create_subprocess_exec(
-                    "loudgain", "-s", "i", song_path
-                )
-                await process.communicate()
+            await download(provider, content_id, metadata, song)
     except IntegrityError:
         song = await manager.get(Song, external_id=task.external_id)
         song.title = metadata.title
         song.search_field = search_value
-        await manager.update(song, only=["title", "search_field"])
+        await asyncio.gather(
+            manager.update(song, only=["title", "search_field"]),
+            download(provider, content_id, metadata, song),
+        )
 
     await mpd_client.update()
     async for _ in mpd_client.idle(["update"]):
