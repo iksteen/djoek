@@ -1,9 +1,8 @@
 <template>
-  <v-list-item>
-    <v-list-item-content>
-      <v-list-item-title v-text="title" />
-    </v-list-item-content>
-  </v-list-item>
+  <div
+    class="py-3 text-truncate"
+    v-text="title"
+  />
 </template>
 
 <script>

@@ -9,19 +9,17 @@
         <stream-player />
       </div>
     </div>
-    <v-divider />
+    <v-divider class="mb-6" />
 
-    <v-list class="mt-4">
-      <v-subheader>Now playing</v-subheader>
-      <playlist-item :title="currentSong" />
-      <v-subheader>Up next</v-subheader>
-      <playlist-item :title="nextSong" />
-      <playlist-item
-        v-for="(item, i) in playlist"
-        :key="i"
-        :title="item.title"
-      />
-    </v-list>
+    <v-subheader class="px-0">Now playing</v-subheader>
+    <playlist-item :title="currentSong" />
+    <v-subheader class="px-0">Up next</v-subheader>
+    <playlist-item :title="nextSong" />
+    <playlist-item
+      v-for="(item, i) in playlist"
+      :key="i"
+      :title="item.title"
+    />
   </div>
 </template>
 
