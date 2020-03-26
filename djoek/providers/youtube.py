@@ -57,7 +57,7 @@ class YouTubeProvider(Provider):
         pipe = asyncpipe.PipeBuilder(
             "youtube-dl",
             "-f",
-            "m4a",
+            "bestaudio",
             "-o",
             "-",
             f"https://www.youtube.com/watch?v={content_id}",
@@ -69,7 +69,7 @@ class YouTubeProvider(Provider):
             "-codec:a",
             "libmp3lame",
             "-qscale:a",
-            "2",
+            "1",
             "-f",
             "mp3",
             "-",
