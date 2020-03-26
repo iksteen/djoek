@@ -1,9 +1,11 @@
+import json
 import logging
 import os
 import random
 from base64 import urlsafe_b64decode
 from typing import List, Optional, cast
 
+import aiofiles
 from peewee_async import Manager
 
 from djoek import settings
@@ -28,7 +30,35 @@ class Player:
         self.next_song = None
         self.recent = []
 
+    async def load_state(self) -> None:
+        if not settings.STATE_PATH:
+            return
+        try:
+            async with aiofiles.open(settings.STATE_PATH, "r") as f:
+                state = json.loads(await f.read())
+        except Exception:
+            logger.exception("Failed to load state")
+        else:
+            queue_ids = state.get("queue", [])
+            songs = await self.manager.execute(
+                Song.select().where(Song.id.in_(queue_ids))
+            )
+            self.queue = sorted(songs, key=lambda song: queue_ids.index(song.id))
+            self.recent = state.get("recent", [])
+
+    async def save_state(self) -> None:
+        if not settings.STATE_PATH:
+            return
+
+        state = json.dumps(
+            {"queue": [song.id for song in self.queue], "recent": self.recent}, indent=4
+        )
+        async with aiofiles.open(settings.STATE_PATH, "w") as f:
+            await f.write(state)
+
     async def run(self) -> None:
+        await self.load_state()
+
         async with self.mpd_client:
             self.mpd_client = self.mpd_client
             await self.mpd_client.execute("random 0")
@@ -44,6 +74,7 @@ class Player:
 
     async def enqueue(self, song: Song) -> None:
         self.queue.append(song)
+        await self.save_state()
         await self.check_playlist()
 
     def add_recent(self, song_id: int) -> None:
@@ -80,6 +111,8 @@ class Player:
             self.next_song = await self.get_song_by_playlist_id(status["nextsongid"])
             if self.next_song:
                 self.add_recent(self.next_song.id)
+
+        await self.save_state()
 
     async def get_song_by_playlist_id(self, playlist_song_id: str) -> Optional[Song]:
         song_data = await self.mpd_client.execute(f"playlistid {playlist_song_id}")

@@ -31,6 +31,7 @@ services:
       - DJOEK_MPD_HOST=mpd
       - DJOEK_DB_URI=postgres://app:${DB_APP_PASSWORD}@db/app
       - DJOEK_MUSIC_DIR=/music
+      - DJOEK_STATE_PATH=/djoek/djoek.state
       - DJOEK_AUTH0_DOMAIN=${DJOEK_AUTH0_DOMAIN}
       - DJOEK_AUTH0_AUDIENCE=${DJOEK_AUTH0_AUDIENCE}
       - DJOEK_AUTH0_PARTIES=${DJOEK_AUTH0_PARTIES}
@@ -38,3 +39,4 @@ services:
       - DJOEK_SOUNDCLOUD_CLIENT_ID=${DJOEK_SOUNDCLOUD_CLIENT_ID}
     volumes:
       - ./data/music:/music
+      - ./data/djoek:/djoek
