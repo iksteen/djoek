@@ -97,6 +97,9 @@
         )
       },
     },
+    mounted () {
+      this.$refs.query.focus()
+    },
     beforeDestroy () {
       this.cancelSearchTimeout()
     },
