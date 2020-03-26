@@ -4,7 +4,11 @@
 .idea
 __pycache__
 data/*
+!data/djoek/
+data/djoek/*
 !data/djoek/.gitkeep
+!data/music
+data/music/*
 !data/music/.gitkeep
 auth-config.json
 docker-compose.override.yml
