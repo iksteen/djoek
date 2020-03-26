@@ -31,20 +31,25 @@ class Authenticator:
             return await self._keyset_future
         self._keyset_future = loop.create_future()
 
-        async with httpx.AsyncClient() as client:
-            r = await client.get(
-                f"https://{settings.AUTH0_DOMAIN}/.well-known/jwks.json"
-            )
-        r.raise_for_status()
+        try:
+            async with httpx.AsyncClient() as client:
+                r = await client.get(
+                    f"https://{settings.AUTH0_DOMAIN}/.well-known/jwks.json"
+                )
+            r.raise_for_status()
 
-        keyset_data = r.json()
+            keyset_data = r.json()
 
-        keyset = {
-            key["kid"]: json.dumps(key, sort_keys=True)
-            for key in keyset_data["keys"]
-            if key["use"] == "sig" and key["kty"] == "RSA" and key["alg"] == "RS256"
-        }
-        self._keyset_future.set_result(keyset)
+            keyset = {
+                key["kid"]: json.dumps(key, sort_keys=True)
+                for key in keyset_data["keys"]
+                if key["use"] == "sig" and key["kty"] == "RSA" and key["alg"] == "RS256"
+            }
+            self._keyset_future.set_result(keyset)
+        except Exception as e:
+            f, self._keyset_future = self._keyset_future, None
+            f.set_exception(e)
+            raise
         return keyset
 
     async def verify(self, auth_header: str) -> None:
