@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from decimal import Decimal
 from typing import List, Optional
 
 from pydantic.main import BaseModel
@@ -9,12 +10,14 @@ class MetadataSchema(BaseModel):
     tags: List[str]
     extension: str
     preview_url: Optional[str]
+    duration: Optional[Decimal]
 
 
 class SearchResultSchema(BaseModel):
     title: str
     external_id: str
     preview_url: Optional[str]
+    duration: Optional[Decimal]
 
 
 class Provider(ABC):

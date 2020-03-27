@@ -45,6 +45,7 @@
         :key="`${result.provider}:${result.externalId}`"
         :title="result.title"
         :provider="result.provider"
+        :duration="result.duration"
         :disabled="!!downloading"
         :loading="downloading === result.externalId"
         @download="download(result.externalId, false)"

@@ -76,6 +76,7 @@ class SoundcloudProvider(Provider):
                 title=get_title(item),
                 external_id=f"{self.key}:{item['id']}",
                 preview_url=item["permalink_url"],
+                duration=item["full_duration"] / 1000.0,
             )
             for item in result["collection"]
             if item["policy"] != "SNIP"

@@ -11,9 +11,13 @@
     </div>
     <v-divider class="mb-4" />
 
-    <v-subheader class="px-0">Now playing</v-subheader>
+    <v-subheader class="px-0">
+      Now playing
+    </v-subheader>
     <playlist-item :title="currentSong" />
-    <v-subheader class="px-0">Up next</v-subheader>
+    <v-subheader class="px-0">
+      Up next
+    </v-subheader>
     <playlist-item :title="nextSong" />
     <playlist-item
       v-for="(item, i) in playlist"

@@ -1,7 +1,7 @@
 from base64 import urlsafe_b64encode
 from typing import cast
 
-from peewee import AutoField, Model, TextField
+from peewee import AutoField, DecimalField, Model, TextField
 from peewee_asyncext import PooledPostgresqlExtDatabase
 from playhouse.postgres_ext import ArrayField, TSVectorField
 
@@ -19,6 +19,7 @@ class Song(Model):
     external_id = TextField(unique=True)
     extension = TextField()
     preview_url = TextField(null=True)
+    duration = DecimalField(null=True)
 
     @property
     def filename(self) -> str:

@@ -2,10 +2,12 @@ import asyncio
 import logging
 import os
 import re
+from decimal import Decimal
 from typing import List, Optional, cast
 
 import aiofiles
 import aiofiles.os
+import mutagen
 from fastapi import Depends, FastAPI, HTTPException
 from peewee import IntegrityError, fn
 from peewee_async import Manager
@@ -41,6 +43,7 @@ class StatusSchema(BaseModel):
 
 class PlaylistItemSchema(BaseModel):
     title: str
+    duration: Optional[Decimal]
 
 
 class LibraryAddSchema(BaseModel):
@@ -74,7 +77,10 @@ async def status(player: Player = Depends(get_player),) -> StatusSchema:
 async def playlist_list(
     player: Player = Depends(get_player),
 ) -> List[PlaylistItemSchema]:
-    return [PlaylistItemSchema(title=song.title) for song in player.queue]
+    return [
+        PlaylistItemSchema(title=song.title, duration=song.duration)
+        for song in player.queue
+    ]
 
 
 def edge_ngrams(key: str) -> List[str]:
@@ -89,15 +95,31 @@ async def wait_for_song(song: Song) -> None:
 
 
 async def download(
-    provider: Provider, content_id: str, metadata: MetadataSchema, song: Song
+    manager: Manager,
+    provider: Provider,
+    content_id: str,
+    metadata: MetadataSchema,
+    song: Song,
+    do_update: bool = True,
 ) -> None:
     song_path = os.path.join(settings.MUSIC_DIR, song.filename)
     try:
         await aiofiles.os.stat(song_path)
     except FileNotFoundError:
-        await provider.download(content_id, metadata, song_path)
-        process = await asyncio.create_subprocess_exec("loudgain", "-s", "i", song_path)
-        await process.communicate()
+        pass
+    else:
+        return
+
+    await provider.download(content_id, metadata, song_path)
+    process = await asyncio.create_subprocess_exec("loudgain", "-s", "i", song_path)
+    await process.communicate()
+    try:
+        m = mutagen.File(song_path)
+        song.duration = m.info.length
+        if do_update:
+            await manager.update(song, only=["duration"])
+    except Exception:
+        logger.exception("Failed to determine song length")
 
 
 @app.post("/library/", response_model=str, dependencies=[Depends(require_auth)])
@@ -137,15 +159,13 @@ async def playlist_add(
                     extension=metadata.extension,
                     preview_url=metadata.preview_url,
                 )
-                await download(provider, content_id, metadata, song)
+                await download(manager, provider, content_id, metadata, song)
         except IntegrityError:
             song = await manager.get(Song, external_id=task.external_id)
             song.title = metadata.title
             song.search_field = search_value
-            await asyncio.gather(
-                manager.update(song, only=["title", "search_field"]),
-                download(provider, content_id, metadata, song),
-            )
+            await download(manager, provider, content_id, metadata, song, False)
+            await manager.update(song, only=["title", "search_field", "duration"])
 
         try:
             await asyncio.wait_for(wait_for_song(song), timeout=5.0)
@@ -176,6 +196,7 @@ async def search(
                 title=song.title,
                 external_id=song.external_id,
                 preview_url=song.preview_url,
+                duration=song.duration,
             )
             for song in songs
         ]

@@ -1,6 +1,7 @@
 import asyncio
 import os
 
+import mutagen
 import peewee
 from psycopg2.errors import UndefinedColumn
 from psycopg2.extensions import parse_dsn
@@ -46,6 +47,22 @@ def migrate_preview_url() -> None:
     )
 
 
+def migrate_duration() -> None:
+    database.execute_sql(
+        """
+        ALTER TABLE song ADD COLUMN duration NUMERIC
+        """
+    )
+    for song in Song.select():
+        path = os.path.join(settings.MUSIC_DIR, song.filename)
+        try:
+            m = mutagen.File(path)
+            song.duration = m.info.length
+            song.save(only={"duration"})
+        except Exception as e:
+            print(f"Skipping {song.title} ({e})")
+
+
 def column_exists(column_name: str) -> bool:
     try:
         database.execute_sql(f'SELECT "{column_name}" FROM song;')
@@ -68,3 +85,6 @@ if __name__ == "__main__":
 
     if not column_exists("preview_url"):
         migrate_preview_url()
+
+    if not column_exists("duration"):
+        migrate_duration()

@@ -7,8 +7,14 @@
   >
     <v-card-text
       class="subtitle-1"
-      v-text="title"
-    />
+    >
+      <div class="d-flex">
+        <div>{{ title }}</div>
+        <div class="ml-auto">
+          {{ duration ? formatDuration(duration) : "-:--" }}
+        </div>
+      </div>
+    </v-card-text>
     <v-card-actions>
       <v-spacer />
       <v-tooltip bottom>
@@ -57,9 +63,17 @@
     name: 'SearchResult',
     props: {
       title: String,
+      duration: Number,
       provider: String,
       disabled: Boolean,
       loading: Boolean,
+    },
+    methods: {
+      formatDuration (duration) {
+        const minutes = Math.trunc(duration / 60)
+        const seconds = Math.trunc(duration % 60)
+        return `${minutes}:${`00${seconds}`.slice(-2)}`
+      },
     },
   }
 </script>

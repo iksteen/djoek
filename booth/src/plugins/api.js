@@ -49,10 +49,11 @@ const useApi = () => {
           q: query,
           provider,
         })
-        return data.map(({ title, external_id: externalId, preview_url: previewUrl }) => ({
+        return data.map(({ title, external_id: externalId, preview_url: previewUrl, duration }) => ({
           title,
           externalId,
           previewUrl,
+          duration,
         }))
       },
     },
