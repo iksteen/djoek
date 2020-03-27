@@ -13,6 +13,8 @@ services:
       context: .
       dockerfile: Dockerfile-front
     image: djoek-front:latest
+    volumes:
+     - ./auth-config.json:/booth/auth-config.json
 
   db:
     image: postgres:11

@@ -1,5 +1,4 @@
 FROM node:lts
-COPY auth-config.json /app/auth-config.json
 COPY booth /app/booth
 WORKDIR /app/booth
 RUN yarn install && yarn build
