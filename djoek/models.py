@@ -2,10 +2,10 @@ from base64 import urlsafe_b64encode
 from typing import cast
 
 from fastapi import FastAPI
-from peewee import AutoField, DecimalField, Model, TextField
+from peewee import AutoField, DecimalField, ForeignKeyField, Model, TextField
 from peewee_async import Manager
 from peewee_asyncext import PooledPostgresqlExtDatabase
-from playhouse.postgres_ext import ArrayField, TSVectorField
+from playhouse.postgres_ext import ArrayField, JSONField, TSVectorField
 from psycopg2._psycopg import parse_dsn
 from starlette.requests import Request
 
@@ -30,6 +30,14 @@ async def get_manager(request: Request) -> Manager:
     return request.app.state.manager
 
 
+class User(Model):
+    class Meta:
+        database = database
+
+    sub = TextField(unique=True)
+    profile = JSONField()
+
+
 class Song(Model):
     class Meta:
         database = database
@@ -42,6 +50,7 @@ class Song(Model):
     extension = TextField()
     preview_url = TextField(null=True)
     duration = DecimalField(null=True)
+    user = ForeignKeyField(User, null=True)
 
     @property
     def filename(self) -> str:

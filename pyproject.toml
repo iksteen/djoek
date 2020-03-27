@@ -18,6 +18,7 @@ python-jose = {version = "^3.1.0", extras = ["cryptography"]}
 multidict = "^4.7.5"
 mutagen = "^1.44.0"
 isodate = "^0.6.0"
+cachetools = "^4.0.0"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.2.0"

@@ -3,11 +3,11 @@ import os
 
 import mutagen
 import peewee
-from psycopg2.errors import UndefinedColumn
+from psycopg2.errors import UndefinedColumn, UndefinedTable
 from psycopg2.extensions import parse_dsn
 
 import djoek.settings as settings
-from djoek.models import Song, database
+from djoek.models import Song, User, database
 from djoek.mpdclient import MPDClient
 
 
@@ -63,6 +63,18 @@ def migrate_duration() -> None:
             print(f"Skipping {song.title} ({e})")
 
 
+def table_exists(table_name: str) -> bool:
+    try:
+        database.execute_sql(f'SELECT 1 FROM "{table_name}"')
+    except peewee.ProgrammingError as e:
+        if isinstance(e.orig, UndefinedTable):
+            database.rollback()
+            return False
+        else:
+            raise
+    return True
+
+
 def column_exists(column_name: str) -> bool:
     try:
         database.execute_sql(f'SELECT "{column_name}" FROM song;')
@@ -75,10 +87,23 @@ def column_exists(column_name: str) -> bool:
     return True
 
 
+def migrate_submitter() -> None:
+    database.execute_sql(
+        """
+        ALTER TABLE song ADD COLUMN user_id INTEGER REFERENCES "user"(id) ON DELETE SET NULL;
+        """
+    )
+
+
 if __name__ == "__main__":
     db_config = parse_dsn(settings.DB_URI)
     database.init(db_config.pop("dbname"), **db_config)
-    database.create_tables([Song])
+
+    if not table_exists("user"):
+        database.create_tables([User])
+
+    if not table_exists("song"):
+        database.create_tables([Song])
 
     if not column_exists("extension"):
         migrate_extension()
@@ -88,3 +113,6 @@ if __name__ == "__main__":
 
     if not column_exists("duration"):
         migrate_duration()
+
+    if not column_exists("user_id"):
+        migrate_submitter()

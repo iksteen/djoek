@@ -1,17 +1,21 @@
 import asyncio
 import json
-from typing import Any, Awaitable, Dict, Optional
+from math import inf
+from typing import Any, Awaitable, Dict, Optional, cast
 
 import httpx
 import jose.jws
 import jose.jwt
+from cachetools import TTLCache
 from fastapi import Depends, HTTPException
 from fastapi.openapi.models import OAuthFlowImplicit, OAuthFlows
 from fastapi.security import OAuth2
+from peewee_async import Manager
 from starlette.datastructures import URL
 from starlette.status import HTTP_403_FORBIDDEN
 
 import djoek.settings as settings
+from djoek.models import User, get_manager
 
 
 class AuthenticationFailed(Exception):
@@ -23,6 +27,7 @@ class Authenticator:
 
     def __init__(self) -> None:
         self._keyset_future = None
+        self._userinfo_cache = TTLCache(inf, 3600)
 
     async def get_keys(self, *, force: bool = False) -> Dict[str, Any]:
         loop = asyncio.get_event_loop()
@@ -52,7 +57,34 @@ class Authenticator:
             raise
         return keyset
 
-    async def verify(self, auth_header: str) -> None:
+    async def get_userinfo(self, auth_header: str, sub: str) -> Dict[str, Any]:
+        loop = asyncio.get_event_loop()
+
+        userinfo: Dict[str, Any]
+
+        f_userinfo = self._userinfo_cache.get(sub)
+        if f_userinfo is not None:
+            userinfo = await f_userinfo
+            return userinfo
+
+        f_userinfo = self._userinfo_cache[sub] = loop.create_future()
+        try:
+            async with httpx.AsyncClient() as client:
+                r = await client.get(
+                    f"https://{settings.AUTH0_DOMAIN}/userinfo",
+                    headers={"Authorization": auth_header},
+                )
+            r.raise_for_status()
+            userinfo = r.json()
+        except Exception as e:
+            f_userinfo.set_exception(e)
+            del self._userinfo_cache[sub]
+            raise
+
+        f_userinfo.set_result(userinfo)
+        return userinfo
+
+    async def verify(self, auth_header: str) -> Dict[str, Any]:
         parts = auth_header.split()
         if len(parts) != 2 or parts[0] != "Bearer":
             raise AuthenticationFailed("invalid authorization header")
@@ -81,7 +113,7 @@ class Authenticator:
                 raise AuthenticationFailed("key not found")
 
         try:
-            decoded_token = jose.jwt.decode(
+            decoded_token: Dict[str, Any] = jose.jwt.decode(
                 token, key, audience=settings.AUTH0_AUDIENCE
             )
         except (jose.JWTError, ValueError):
@@ -89,6 +121,8 @@ class Authenticator:
 
         if decoded_token.get("azp") not in settings.AUTH0_PARTIES:
             raise AuthenticationFailed("invalid client")
+
+        return decoded_token
 
 
 authenticator = Authenticator()
@@ -106,8 +140,30 @@ oauth2_scheme = OAuth2(
 )
 
 
-async def require_auth(auth_header: str = Depends(oauth2_scheme)) -> None:
+async def require_auth(auth_header: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
     try:
-        await authenticator.verify(auth_header)
+        return await authenticator.verify(auth_header)
     except AuthenticationFailed as e:
         raise HTTPException(HTTP_403_FORBIDDEN, detail=str(e))
+
+
+async def require_userinfo(
+    auth_header: str = Depends(oauth2_scheme),
+    token: Dict[str, Any] = Depends(require_auth),
+) -> Dict[str, Any]:
+    try:
+        return await authenticator.get_userinfo(auth_header, token["sub"])
+    except Exception as e:
+        raise HTTPException(HTTP_403_FORBIDDEN, detail=str(e))
+
+
+async def require_user_id(
+    userinfo: Dict[str, Any] = Depends(require_userinfo),
+    manager: Manager = Depends(get_manager),
+) -> int:
+    user_id = await manager.execute(
+        User.insert(sub=userinfo["sub"], profile=userinfo).on_conflict(
+            conflict_target=[User.sub], update={User.profile: userinfo}
+        )
+    )
+    return cast(int, user_id)

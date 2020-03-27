@@ -3,7 +3,7 @@ import logging
 import os
 import re
 from decimal import Decimal
-from typing import List, Optional, cast
+from typing import Any, Dict, List, Optional, cast
 
 import aiofiles
 import aiofiles.os
@@ -14,7 +14,7 @@ from peewee_async import Manager
 from pydantic import BaseModel
 
 from djoek import settings
-from djoek.auth import require_auth
+from djoek.auth import require_auth, require_user_id
 from djoek.models import Song, get_manager
 from djoek.mpdclient import MPDClient
 from djoek.player import Player, get_player
@@ -113,11 +113,12 @@ async def download(
         logger.exception("Failed to determine song length")
 
 
-@app.post("/library/", response_model=str, dependencies=[Depends(require_auth)])
+@app.post("/library/", response_model=str)
 async def playlist_add(
     task: LibraryAddSchema,
     manager: Manager = Depends(get_manager),
     player: Player = Depends(get_player),
+    user_id: Dict[str, Any] = Depends(require_user_id),
 ) -> str:
     provider_key, content_id = task.external_id.split(":", 1)
     provider = PROVIDERS[provider_key]
@@ -149,6 +150,7 @@ async def playlist_add(
                     external_id=task.external_id,
                     extension=metadata.extension,
                     preview_url=metadata.preview_url,
+                    user_id=user_id,
                 )
                 await download(manager, provider, content_id, metadata, song)
         except IntegrityError:
