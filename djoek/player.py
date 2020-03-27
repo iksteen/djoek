@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -6,13 +7,29 @@ from base64 import urlsafe_b64decode
 from typing import List, Optional, cast
 
 import aiofiles
+from fastapi import FastAPI
 from peewee_async import Manager
+from starlette.requests import Request
 
 from djoek import settings
 from djoek.models import Song
 from djoek.mpdclient import MPDClient, MPDCommandError
 
 logger = logging.getLogger(__name__)
+
+
+async def setup_player(app: FastAPI) -> None:
+    loop = asyncio.get_event_loop()
+    app.state.player = player = Player(app.state.manager)
+    app.state.player_task = loop.create_task(player.run())
+
+
+async def shutdown_player(app: FastAPI) -> None:
+    app.state.player_task.cancel()
+
+
+async def get_player(request: Request) -> "Player":
+    return cast(Player, request.app.state.player)
 
 
 class Player:

@@ -1,11 +1,33 @@
 from base64 import urlsafe_b64encode
 from typing import cast
 
+from fastapi import FastAPI
 from peewee import AutoField, DecimalField, Model, TextField
+from peewee_async import Manager
 from peewee_asyncext import PooledPostgresqlExtDatabase
 from playhouse.postgres_ext import ArrayField, TSVectorField
+from psycopg2._psycopg import parse_dsn
+from starlette.requests import Request
+
+from djoek import settings
 
 database = PooledPostgresqlExtDatabase(None)
+
+
+async def setup_manager(app: FastAPI) -> None:
+    db_config = parse_dsn(settings.DB_URI)
+    db_name = db_config.pop("dbname")
+    database.init(db_name, **db_config)
+    database.set_allow_sync(False)
+    app.state.manager = Manager(database)
+
+
+async def shutdown_manager(app: FastAPI) -> None:
+    app.state.manager.database.close()
+
+
+async def get_manager(request: Request) -> Manager:
+    return request.app.state.manager
 
 
 class Song(Model):

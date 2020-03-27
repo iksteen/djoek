@@ -12,13 +12,12 @@ from fastapi import Depends, FastAPI, HTTPException
 from peewee import IntegrityError, fn
 from peewee_async import Manager
 from pydantic import BaseModel
-from starlette.requests import Request
 
 from djoek import settings
 from djoek.auth import require_auth
-from djoek.models import Song
+from djoek.models import Song, get_manager
 from djoek.mpdclient import MPDClient
-from djoek.player import Player
+from djoek.player import Player, get_player
 from djoek.providers import MetadataSchema, Provider, SearchResultSchema
 from djoek.providers.registry import PROVIDERS
 
@@ -26,14 +25,6 @@ app = FastAPI()
 
 logger = logging.getLogger(__name__)
 WORD_RE = re.compile(r"\w+", re.UNICODE)
-
-
-async def get_manager(request: Request) -> Manager:
-    return request.app.state.manager
-
-
-async def get_player(request: Request) -> Player:
-    return cast(Player, request.app.state.player)
 
 
 class StatusSchema(BaseModel):
