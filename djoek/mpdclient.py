@@ -50,7 +50,7 @@ class MPDClient:
         writer: Optional[asyncio.StreamWriter] = None
 
         async def reset_connection(
-            message: str = "Lost connection to mpd, reconnecting."
+            message: str = "Lost connection to mpd, reconnecting.",
         ) -> None:
             nonlocal reader
             nonlocal writer
