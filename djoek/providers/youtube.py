@@ -1,8 +1,9 @@
+import asyncio
 import html
+import os
 import re
 from typing import List, Optional
 
-import asyncpipe
 import httpx
 import isodate
 
@@ -60,27 +61,21 @@ class YouTubeProvider(Provider):
     async def download(
         self, content_id: str, metadata: MetadataSchema, path: str
     ) -> None:
-        pipe = asyncpipe.PipeBuilder(
+        basename, ext = os.path.splitext(path)
+        process = await asyncio.create_subprocess_exec(
             "youtube-dl",
-            "-f",
-            "bestaudio",
+            "-x",
+            "--audio-format",
+            "mp3",
+            "--audio-quality",
+            "1",
+            "--audio-format",
+            "mp3",
             "-o",
-            "-",
+            f"{basename}.%(ext)s",
             f"https://www.youtube.com/watch?v={content_id}",
         )
-        pipe.chain(
-            "ffmpeg",
-            "-i",
-            "pipe:",
-            "-codec:a",
-            "libmp3lame",
-            "-qscale:a",
-            "1",
-            "-f",
-            "mp3",
-            path,
-        )
-        await pipe.call_async()
+        await process.communicate()
 
     async def search(self, query: str) -> List[SearchResultSchema]:
         m = YOUTUBE_URL_RE.match(query)
