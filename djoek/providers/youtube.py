@@ -2,7 +2,6 @@ import html
 import re
 from typing import List, Optional
 
-import aiofiles
 import asyncpipe
 import httpx
 import isodate
@@ -79,12 +78,9 @@ class YouTubeProvider(Provider):
             "1",
             "-f",
             "mp3",
-            "-",
+            path,
         )
-        result = await pipe.call_async()
-
-        async with aiofiles.open(path, "wb") as f:
-            await f.write(result[-1].stdout)
+        await pipe.call_async()
 
     async def search(self, query: str) -> List[SearchResultSchema]:
         m = YOUTUBE_URL_RE.match(query)
