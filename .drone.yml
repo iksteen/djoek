@@ -1,0 +1,13 @@
+pipeline:
+  codestyle-py:
+    image: python:3.7
+    commands:
+      - pip install poetry
+      - python -mvenv .venv
+      - poetry install
+      - poetry run pre-commit run -a
+
+  codestyle-js:
+    image: node:lts
+    commands:
+      - cd booth && yarn install && yarn run lint --no-fix
