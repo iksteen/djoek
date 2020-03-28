@@ -11,6 +11,5 @@ data/djoek/*
 data/music/*
 !data/music/.gitkeep
 auth-config.json
-booth/public/auth-config.json
 docker-compose.override.yml
 djoek.state

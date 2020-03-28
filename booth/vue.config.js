@@ -1,3 +1,13 @@
+const CopyPlugin = require('copy-webpack-plugin')
+
+const authCopy = process.env.NODE_ENV !== 'production'
+  ? [
+    new CopyPlugin([{
+      from: '../auth-config.json',
+    }]),
+  ]
+  : []
+
 module.exports = {
   publicPath: process.env.NODE_ENV === 'production'
     ? '/booth/'
@@ -17,6 +27,14 @@ module.exports = {
         target: 'http://localhost:8001/mpd.ogg',
       },
     },
+    writeToDisk: (filePath) => {
+      return /^auth-config\.json$/.test(filePath)
+    },
   },
   transpileDependencies: ['vuetify'],
+  configureWebpack: {
+    plugins: [
+      ...authCopy,
+    ],
+  },
 }
