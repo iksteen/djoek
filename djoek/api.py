@@ -99,7 +99,9 @@ async def download(
         return
 
     await provider.download(content_id, song)
-    process = await asyncio.create_subprocess_exec("loudgain", "-s", "i", song.path)
+    process = await asyncio.create_subprocess_exec(
+        "loudgain", "-s", "i", str(song.path)
+    )
     await process.communicate()
     try:
         m = mutagen.File(song.path)
