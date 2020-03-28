@@ -1,6 +1,5 @@
 import asyncio
 import html
-import os
 import re
 from typing import List, Optional
 
@@ -8,6 +7,7 @@ import httpx
 import isodate
 
 import djoek.settings as settings
+from djoek.models import Song
 from djoek.providers import MetadataSchema, Provider, SearchResultSchema
 
 YOUTUBE_URL_RE = re.compile(
@@ -58,10 +58,8 @@ class YouTubeProvider(Provider):
             duration=duration,
         )
 
-    async def download(
-        self, content_id: str, metadata: MetadataSchema, path: str
-    ) -> None:
-        basename, ext = os.path.splitext(path)
+    async def download(self, content_id: str, song: Song) -> None:
+        basename = song.path.parent / song.path.stem
         process = await asyncio.create_subprocess_exec(
             "youtube-dl",
             "-x",

@@ -6,6 +6,7 @@ import aiofiles
 import httpx
 
 import djoek.settings as settings
+from djoek.models import Song
 from djoek.providers import MetadataSchema, Provider, SearchResultSchema
 
 
@@ -41,21 +42,19 @@ class SoundcloudProvider(Provider):
             preview_url=metadata["permalink_url"],
         )
 
-    async def download(
-        self, content_id: str, metadata: MetadataSchema, path: str
-    ) -> None:
+    async def download(self, content_id: str, song: Song) -> None:
         p = await asyncio.create_subprocess_exec(
             "youtube-dl",
             "-f",
             "mp3",
             "-o",
             "-",
-            metadata.preview_url,
+            song.preview_url,
             stdout=subprocess.PIPE,
         )
         data, _ = await p.communicate()
 
-        async with aiofiles.open(path, "wb") as f:
+        async with aiofiles.open(song.path, "wb") as f:
             await f.write(data)
 
     async def search(self, query: str) -> List[SearchResultSchema]:

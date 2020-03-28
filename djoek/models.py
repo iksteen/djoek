@@ -1,4 +1,5 @@
 from base64 import urlsafe_b64encode
+from pathlib import Path
 from typing import cast
 
 from fastapi import FastAPI
@@ -60,6 +61,10 @@ class Song(Model):
             .decode("utf-8")
         )
         return f"{basename}{self.extension}"
+
+    @property
+    def path(self) -> Path:
+        return settings.MUSIC_DIR / self.filename
 
     @property
     def provider(self) -> str:

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import re
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, cast
@@ -18,7 +17,7 @@ from djoek.auth import require_auth, require_user_id
 from djoek.models import Song, get_manager
 from djoek.mpdclient import MPDClient
 from djoek.player import Player, get_player
-from djoek.providers import MetadataSchema, Provider, SearchResultSchema
+from djoek.providers import Provider, SearchResultSchema
 from djoek.providers.registry import PROVIDERS
 
 app = FastAPI()
@@ -89,23 +88,21 @@ async def download(
     manager: Manager,
     provider: Provider,
     content_id: str,
-    metadata: MetadataSchema,
     song: Song,
     do_update: bool = True,
 ) -> None:
-    song_path = os.path.join(settings.MUSIC_DIR, song.filename)
     try:
-        await aiofiles.os.stat(song_path)
+        await aiofiles.os.stat(song.path)
     except FileNotFoundError:
         pass
     else:
         return
 
-    await provider.download(content_id, metadata, song_path)
-    process = await asyncio.create_subprocess_exec("loudgain", "-s", "i", song_path)
+    await provider.download(content_id, song)
+    process = await asyncio.create_subprocess_exec("loudgain", "-s", "i", song.path)
     await process.communicate()
     try:
-        m = mutagen.File(song_path)
+        m = mutagen.File(song.path)
         song.duration = m.info.length
         if do_update:
             await manager.update(song, only=["duration"])
@@ -152,12 +149,12 @@ async def playlist_add(
                     preview_url=metadata.preview_url,
                     user_id=user_id,
                 )
-                await download(manager, provider, content_id, metadata, song)
+                await download(manager, provider, content_id, song)
         except IntegrityError:
             song = await manager.get(Song, external_id=task.external_id)
             song.title = metadata.title
             song.search_field = search_value
-            await download(manager, provider, content_id, metadata, song, False)
+            await download(manager, provider, content_id, song, False)
             await manager.update(song, only=["title", "search_field", "duration"])
 
         try:

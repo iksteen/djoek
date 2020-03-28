@@ -4,6 +4,8 @@ from typing import List, Optional
 
 from pydantic.main import BaseModel
 
+from djoek.models import Song
+
 
 class MetadataSchema(BaseModel):
     title: str
@@ -28,9 +30,7 @@ class Provider(ABC):
         ...
 
     @abstractmethod
-    async def download(
-        self, content_id: str, metadata: MetadataSchema, path: str
-    ) -> None:
+    async def download(self, content_id: str, song: Song) -> None:
         ...
 
     @abstractmethod

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import dotenv
 
@@ -14,7 +15,7 @@ SERVE_PLAYER = os.environ.get("DJOEK_SERVE_PLAYER", "false").lower() in (
 
 MPD_HOST = os.environ.get("DJOEK_MPD_HOST", "localhost")
 DB_URI = os.environ.get("DJOEK_DB_URI", "postgres:///djoek")
-MUSIC_DIR = os.environ.get("DJOEK_MUSIC_DIR", "./music")
+MUSIC_DIR = Path(os.environ.get("DJOEK_MUSIC_DIR", "./music"))
 STATE_PATH = os.environ.get("DJOEK_STATE_PATH", "djoek.state")
 
 AUTH0_DOMAIN = os.environ.get("DJOEK_AUTH0_DOMAIN", "")
