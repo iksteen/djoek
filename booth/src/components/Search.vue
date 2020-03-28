@@ -7,6 +7,7 @@
     <v-text-field
       ref="query"
       v-model="query"
+      clearable
       @keyup.enter="search('youtube', query)"
     >
       <template v-slot:append-outer>
