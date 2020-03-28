@@ -2,6 +2,7 @@ import asyncio
 import logging
 import re
 from decimal import Decimal
+from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
 
 import aiofiles
@@ -103,9 +104,14 @@ async def download(
         "loudgain", "-s", "i", str(song.path)
     )
     await process.communicate()
+
+    def process_metadata(song_path: Path) -> float:
+        m = mutagen.File(song_path)
+        return float(m.info.length)
+
+    loop = asyncio.get_event_loop()
     try:
-        m = mutagen.File(song.path)
-        song.duration = m.info.length
+        song.duration = await loop.run_in_executor(None, process_metadata, song.path)
         if do_update:
             await manager.update(song, only=["duration"])
     except Exception:
