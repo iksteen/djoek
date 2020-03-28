@@ -54,12 +54,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
     control.textContent = playText;
   }
 
+  function getTitle(song) {
+    return (song ? song.title : '') || 'unknown';
+  }
+
   function update() {
     fetch("/api/")
       .then((r) => r.json())
       .then((r) => {
-        currentSong.textContent = r.current_song || "unknown";
-        nextSong.textContent = r.next_song || "unknown";
+        currentSong.textContent = getTitle(r.current_song);
+        nextSong.textContent = getTitle(r.next_song);
       });
   }
   update();

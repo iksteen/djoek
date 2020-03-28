@@ -9,10 +9,11 @@
       class="subtitle-1"
     >
       <div class="d-flex">
-        <div>{{ title }}</div>
-        <div class="ml-auto">
-          {{ duration ? formatDuration(duration) : "-:--" }}
-        </div>
+        <div v-text="title" />
+        <div
+          class="ml-auto"
+          v-text="$api.formatDuration(duration)"
+        />
       </div>
     </v-card-text>
     <v-card-actions>
@@ -67,13 +68,6 @@
       provider: String,
       disabled: Boolean,
       loading: Boolean,
-    },
-    methods: {
-      formatDuration (duration) {
-        const minutes = Math.trunc(duration / 60)
-        const seconds = Math.trunc(duration % 60)
-        return `${minutes}:${`00${seconds}`.slice(-2)}`
-      },
     },
   }
 </script>

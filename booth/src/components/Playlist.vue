@@ -14,15 +14,15 @@
     <v-subheader class="px-0">
       Now playing
     </v-subheader>
-    <playlist-item :title="currentSong" />
+    <playlist-item :item="currentSong" />
     <v-subheader class="px-0">
       Up next
     </v-subheader>
-    <playlist-item :title="nextSong" />
+    <playlist-item :item="nextSong" />
     <playlist-item
       v-for="(item, i) in playlist"
       :key="i"
-      :title="item.title"
+      :item="item"
     />
   </div>
 </template>

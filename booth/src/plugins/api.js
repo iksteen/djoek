@@ -56,6 +56,16 @@ const useApi = () => {
           duration,
         }))
       },
+
+      formatDuration (duration) {
+        if (duration === null) {
+          return '-:--'
+        }
+
+        const minutes = Math.trunc(duration / 60)
+        const seconds = Math.trunc(duration % 60)
+        return `${minutes}:${`00${seconds}`.slice(-2)}`
+      },
     },
   })
 

@@ -3,7 +3,7 @@ import logging
 import re
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional, TypeVar, cast, overload
 
 import aiofiles
 import aiofiles.os
@@ -26,15 +26,34 @@ app = FastAPI()
 logger = logging.getLogger(__name__)
 WORD_RE = re.compile(r"\w+", re.UNICODE)
 
-
-class StatusSchema(BaseModel):
-    current_song: Optional[str]
-    next_song: Optional[str]
+T_PlaylistItemSchema = TypeVar("T_PlaylistItemSchema", bound="PlaylistItemSchema")
 
 
 class PlaylistItemSchema(BaseModel):
     title: str
     duration: Optional[Decimal]
+
+    @overload
+    @classmethod
+    def from_song(cls, song: None) -> None:
+        ...
+
+    @overload  # noqa: F811
+    @classmethod
+    def from_song(cls, song: Song) -> T_PlaylistItemSchema:
+        ...
+
+    @classmethod  # noqa: F811
+    def from_song(cls, song: Optional[Song]) -> Optional[T_PlaylistItemSchema]:
+        if song is not None:
+            return cls(title=song.title, duration=song.duration)
+        else:
+            return None
+
+
+class StatusSchema(BaseModel):
+    current_song: Optional[PlaylistItemSchema]
+    next_song: Optional[PlaylistItemSchema]
 
 
 class LibraryAddSchema(BaseModel):
@@ -55,8 +74,8 @@ class SearchResponseSchema(BaseModel):
 @app.get("/", response_model=StatusSchema)
 async def status(player: Player = Depends(get_player),) -> StatusSchema:
     return StatusSchema(
-        current_song=player.current_song.title if player.current_song else None,
-        next_song=player.next_song.title if player.next_song else None,
+        current_song=PlaylistItemSchema.from_song(player.current_song),
+        next_song=PlaylistItemSchema.from_song(player.next_song),
     )
 
 
