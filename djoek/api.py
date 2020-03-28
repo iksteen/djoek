@@ -105,13 +105,17 @@ async def download(
     )
     await process.communicate()
 
-    def process_metadata(song_path: Path) -> float:
-        m = mutagen.File(song_path)
+    def process_metadata(song_path: Path, title: str) -> float:
+        m = mutagen.File(song_path, easy=True)
+        m["title"] = title
+        m.save()
         return float(m.info.length)
 
     loop = asyncio.get_event_loop()
     try:
-        song.duration = await loop.run_in_executor(None, process_metadata, song.path)
+        song.duration = await loop.run_in_executor(
+            None, process_metadata, song.path, song.title
+        )
         if do_update:
             await manager.update(song, only=["duration"])
     except Exception:
