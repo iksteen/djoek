@@ -1,5 +1,8 @@
+import http.cookies
 import logging
 import os
+import re
+from typing import no_type_check
 
 from starlette.staticfiles import StaticFiles
 
@@ -11,8 +14,19 @@ from djoek.player import setup_player, shutdown_player
 logger = logging.getLogger(__name__)
 
 
+@no_type_check
+def fix_cookies() -> None:
+    for c in "@{}":
+        if c not in http.cookies._LegalChars:
+            http.cookies._LegalChars += c
+            http.cookies._is_legal_key = re.compile(
+                "[%s]+" % re.escape(http.cookies._LegalChars)
+            ).fullmatch
+
+
 @app.on_event("startup")
 async def on_startup() -> None:
+    fix_cookies()
     await setup_manager(app)
     await setup_player(app)
 
