@@ -96,11 +96,19 @@ class Player:
                 await self.mpd_client.execute("idle playlist update player")
                 await self.check_playlist()
 
-    async def enqueue(self, song: Song) -> None:
+    async def enqueue(self, song: Song) -> bool:
+        if (
+            (self.current_song is not None and song.id == self.current_song.id)
+            or (self.next_song is not None and song.id == self.next_song.id)
+            or song.id in [s.id for s in self.queue]
+        ):
+            return False
+
         self.queue.append(song)
         await self.save_state()
         await self.check_playlist()
         await self.send_updates()
+        return True
 
     async def add_recent(self, song: Song) -> None:
         self.recent.append(song.id)
