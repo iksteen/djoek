@@ -1,4 +1,5 @@
 import Vue from 'vue'
+import VueNativeSock from 'vue-native-websocket'
 import App from './App.vue'
 import store from './store'
 
@@ -12,6 +13,14 @@ fetch('./auth-config.json')
   .then(authConfig => {
     Vue.use(Auth0Plugin, authConfig)
     Vue.use(ApiPlugin)
+
+    const wsOrigin = window.location.origin.replace(/^http(?=s?:\/\/)/, 'ws')
+    Vue.use(VueNativeSock, `${wsOrigin}/api/events`, {
+      store: store,
+      format: 'json',
+      reconnection: true,
+      reconnectionDelay: 5000,
+    })
 
     Vue.config.productionTip = false
 

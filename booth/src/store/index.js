@@ -4,11 +4,13 @@ import { getInstance as getApiInstance } from '../plugins/api'
 
 Vue.use(Vuex)
 
-export default new Vuex.Store({
+const store = new Vuex.Store({
   state: {
     currentSong: null,
     nextSong: null,
     playlist: [],
+    updateInterval: null,
+    connected: false,
   },
   mutations: {
     UPDATE_STATUS: (state, { currentSong, nextSong }) => {
@@ -18,16 +20,34 @@ export default new Vuex.Store({
     UPDATE_PLAYLIST: (state, playlist) => {
       state.playlist = playlist
     },
+    SOCKET_ONOPEN: (state, event) => {
+      state.connected = true
+    },
+    SOCKET_ONCLOSE: (state) => {
+      state.connected = false
+    },
+    SOCKET_ONERROR: () => {},
+    SOCKET_RECONNECT: () => {},
   },
   actions: {
     UPDATE_STATUS: async context => {
       const status = await getApiInstance().getStatus()
       context.commit('UPDATE_STATUS', status)
     },
-    UPDATE_PLAYLIST: async context => {
+    UPDATE_PLAYLIST: async ({ commit }) => {
       const playlist = await getApiInstance().getPlaylist()
-      context.commit('UPDATE_PLAYLIST', playlist)
+      commit('UPDATE_PLAYLIST', playlist)
+    },
+    EVENT: async ({ dispatch }, { event }) => {
+      if (event === 'update') {
+        await Promise.all([
+          dispatch('UPDATE_STATUS'),
+          dispatch('UPDATE_PLAYLIST'),
+        ])
+      }
     },
   },
   modules: {},
 })
+
+export default store

@@ -12,6 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from peewee import IntegrityError, fn
 from peewee_async import Manager
 from pydantic import BaseModel
+from starlette.websockets import WebSocket
 
 from djoek import settings
 from djoek.auth import require_auth, require_user_id
@@ -22,6 +23,7 @@ from djoek.providers import Provider, SearchResultSchema
 from djoek.providers.registry import PROVIDERS
 
 app = FastAPI()
+app.state.ws_clients = []
 
 logger = logging.getLogger(__name__)
 WORD_RE = re.compile(r"\w+", re.UNICODE)
@@ -224,3 +226,17 @@ async def search(
 
     provider = PROVIDERS[query.provider]
     return await provider.search(query.q)
+
+
+@app.websocket("/events")
+async def websocket_endpoint(websocket: WebSocket) -> None:
+    await websocket.accept()
+    app.state.ws_clients.append(websocket)
+    try:
+        while True:
+            message = await websocket.receive()
+            if message["type"] == "websocket.disconnect":
+                break
+            await websocket.close(code=1000)
+    finally:
+        app.state.ws_clients.remove(websocket)

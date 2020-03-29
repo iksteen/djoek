@@ -28,7 +28,7 @@
 </template>
 
 <script>
-  import { mapActions, mapState } from 'vuex'
+  import { mapState } from 'vuex'
   import PlaylistItem from './PlaylistItem'
   import StreamCaster from './StreamCaster'
   import StreamPlayer from './StreamPlayer'
@@ -40,42 +40,8 @@
       StreamCaster,
       StreamPlayer,
     },
-    data () {
-      return {
-        updateHandle: null,
-      }
-    },
     computed: {
       ...mapState(['currentSong', 'nextSong', 'playlist']),
-    },
-    created () {
-      this.update()
-    },
-    beforeDestroy () {
-      if (this.updateHandle !== null) {
-        clearTimeout(this.updateHandle)
-      }
-    },
-    methods: {
-      async update () {
-        this.updateHandle = null
-        try {
-          await Promise.all([
-            this.updateStatus(),
-            this.updatePlaylist(),
-          ])
-        } finally {
-          this.updateHandle = setTimeout(
-            () => this.update(),
-            1000,
-          )
-        }
-      },
-
-      ...mapActions({
-        updateStatus: 'UPDATE_STATUS',
-        updatePlaylist: 'UPDATE_PLAYLIST',
-      }),
     },
   }
 </script>

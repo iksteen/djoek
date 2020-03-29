@@ -1,18 +1,18 @@
 document.addEventListener('DOMContentLoaded', (event) => {
-  let playText = "Play!";
-  let pauseText = "Pause";
-  let bufferText = "Buffering...";
+  const playText = 'Play!';
+  const pauseText = 'Pause';
+  const bufferText = 'Buffering...';
 
-  let player = document.getElementById("player");
-  let control = document.getElementById("play");
-  let currentSong = document.getElementById("current-song");
-  let nextSong = document.getElementById("next-song");
+  const player = document.getElementById('player');
+  const control = document.getElementById('play');
+  const currentSong = document.getElementById('current-song');
+  const nextSong = document.getElementById('next-song');
   let failed = false;
 
   function toggle() {
     if (player.paused) {
-      localStorage.setItem("state", "play");
-      player.src = "/mpd.ogg?" + Date.now();
+      localStorage.setItem('state', 'play');
+      player.src = '/mpd.ogg?' + Date.now();
       setTimeout(() => {
         failed = false;
         player.play().catch(() => {
@@ -22,23 +22,23 @@ document.addEventListener('DOMContentLoaded', (event) => {
         player.muted = true;
       }, 0);
     } else {
-      localStorage.setItem("state", "pause");
+      localStorage.setItem('state', 'pause');
       player.pause();
     }
   }
 
-  control.addEventListener("click", (e) => {
+  control.addEventListener('click', (e) => {
     e.preventDefault();
     toggle();
   });
 
-  player.addEventListener("pause", () => (control.textContent = playText));
-  player.addEventListener("loadstart", () => {
+  player.addEventListener('pause', () => (control.textContent = playText));
+  player.addEventListener('loadstart', () => {
     if (!failed) {
       control.textContent = bufferText;
     }
   });
-  player.addEventListener("canplay", () => {
+  player.addEventListener('canplay', () => {
     setTimeout(() => {
       if (!player.paused) {
         player.muted = false;
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     }, 1500);
   });
 
-  if (localStorage.getItem("state") === "play") {
+  if (localStorage.getItem('state') === 'play') {
     control.textContent = bufferText;
     toggle();
   } else {
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
   }
 
   function update() {
-    fetch("/api/")
+    fetch('/api/')
       .then((r) => r.json())
       .then((r) => {
         currentSong.textContent = getTitle(r.current_song);
@@ -67,5 +67,50 @@ document.addEventListener('DOMContentLoaded', (event) => {
       });
   }
   update();
-  setInterval(update, 1000);
+  let updateInterval = setInterval(update, 5000);
+
+  let ws = null;
+  function connect() {
+    if (ws !== null) {
+      return;
+    }
+
+    let wsOrigin = window.location.origin.replace(/^http(?=s?:\/\/)/, 'ws');
+    ws = new WebSocket(wsOrigin + '/api/events');
+
+    ws.onopen = () => {
+      if (updateInterval !== null) {
+        clearInterval(updateInterval);
+        updateInterval = null;
+      }
+      update();
+    };
+
+    ws.onclose = () => {
+      if (ws === null) {
+        return;
+      }
+
+      ws = null;
+      setTimeout(connect, 1000);
+    };
+
+    ws.onerror = () => {
+      if (ws === null) {
+        return;
+      }
+
+      ws = null;
+      update();
+      setTimeout(connect, 5000);
+    };
+
+    ws.onmessage = (event) => {
+      let message = JSON.parse(event.data);
+      if (message.action === 'EVENT' && message.event === 'update') {
+        update();
+      }
+    };
+  }
+  connect();
 });

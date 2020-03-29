@@ -10,6 +10,7 @@ import aiofiles
 from fastapi import FastAPI
 from peewee_async import Manager
 from starlette.requests import Request
+from starlette.websockets import WebSocket
 
 from djoek import settings
 from djoek.models import Song
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 async def setup_player(app: FastAPI) -> None:
     loop = asyncio.get_event_loop()
-    app.state.player = player = Player(app.state.manager)
+    app.state.player = player = Player(app.state.manager, app.state.ws_clients)
     app.state.player_task = loop.create_task(player.run())
 
 
@@ -35,17 +36,22 @@ async def get_player(request: Request) -> "Player":
 class Player:
     mpd_client: MPDClient
     queue: List[Song]
+    current_song_id: Optional[int]
     current_song: Optional[Song]
+    next_song_id: Optional[int]
     next_song: Optional[Song]
     recent: List[int]
 
-    def __init__(self, manager: Manager):
+    def __init__(self, manager: Manager, ws_clients: List[WebSocket]):
         self.manager = manager
         self.queue = []
         self.mpd_client = MPDClient(settings.MPD_HOST)
+        self.current_song_id = None
         self.current_song = None
+        self.next_song_id = None
         self.next_song = None
         self.recent = []
+        self.ws_clients = ws_clients
 
     async def load_state(self) -> None:
         if not settings.STATE_PATH:
@@ -83,27 +89,29 @@ class Player:
             await self.mpd_client.execute("single 0")
             await self.mpd_client.execute("consume 1")
 
-            await self.check_playlist()
+            while await self.check_playlist():
+                await self.mpd_client.execute("idle playlist")
 
             while True:
-                await self.mpd_client.execute("idle playlist update")
+                await self.mpd_client.execute("idle playlist update player")
                 await self.check_playlist()
 
     async def enqueue(self, song: Song) -> None:
         self.queue.append(song)
         await self.save_state()
         await self.check_playlist()
+        await self.send_updates()
 
-    def add_recent(self, song_id: int) -> None:
-        if song_id in self.recent:
-            self.recent.remove(song_id)
-        self.recent.append(song_id)
+    async def add_recent(self, song: Song) -> None:
+        self.recent.append(song.id)
         self.recent = self.recent[-settings.REMEMBER_RECENT :]
+        await self.save_state()
 
-    async def check_playlist(self) -> None:
+    async def check_playlist(self) -> bool:
         status = await self.mpd_client.execute("status")
 
-        if int(status["playlistlength"]) < 2:
+        playlistlength = int(status["playlistlength"])
+        if playlistlength < 2:
             while True:
                 song = await self.get_next_song()
                 if not song:
@@ -112,26 +120,44 @@ class Player:
                 try:
                     await self.mpd_client.execute(f"addid {song.filename}")
                 except MPDCommandError:
-                    logger.exception("Failed to add song")
+                    logger.exception("Failed to add song, deleting from database")
+                    await self.manager.delete(song)
                     continue
-                return
+                if playlistlength == 0:
+                    await self.add_recent(song)
+                return True
 
         if status["state"] != "play":
             await self.mpd_client.execute("play")
+            return False
 
-        if "songid" in status:
-            self.current_song = await self.get_song_by_playlist_id(status["songid"])
-            if self.current_song:
-                self.add_recent(self.current_song.id)
+        playlist_updated = False
 
-        if "nextsongid" in status:
-            self.next_song = await self.get_song_by_playlist_id(status["nextsongid"])
-            if self.next_song:
-                self.add_recent(self.next_song.id)
+        current_song_id = int(status["songid"]) if "songid" in status else None
+        if current_song_id != self.current_song_id:
+            self.current_song_id = current_song_id
+            playlist_updated = True
+            self.current_song = await self.get_song_by_playlist_id(current_song_id)
+            if self.current_song is not None:
+                await self.add_recent(self.current_song)
 
-        await self.save_state()
+        next_song_id = int(status["nextsongid"]) if "nextsongid" in status else None
+        if next_song_id != self.next_song_id:
+            self.next_song_id = next_song_id
+            playlist_updated = True
+            self.next_song = await self.get_song_by_playlist_id(next_song_id)
 
-    async def get_song_by_playlist_id(self, playlist_song_id: str) -> Optional[Song]:
+        if playlist_updated:
+            await self.send_updates()
+
+        return False
+
+    async def get_song_by_playlist_id(
+        self, playlist_song_id: Optional[int]
+    ) -> Optional[Song]:
+        if playlist_song_id is None:
+            return None
+
         song_data = await self.mpd_client.execute(f"playlistid {playlist_song_id}")
         if not song_data:
             return None
@@ -159,15 +185,24 @@ class Player:
             if not song_ids:
                 return None
 
+            recent = [recent_id for recent_id in self.recent if recent_id in song_ids]
+            if self.next_song is not None and self.next_song.id in song_ids:
+                recent.append(self.next_song.id)
+
             if len(song_ids) > 1:
-                song_ids -= set(
-                    self.recent[-min(len(self.recent), len(song_ids) - 1) :]
-                )
+                song_ids -= set(recent[-min(len(recent), len(song_ids) - 1) :])
 
             song_id = random.choice(tuple(song_ids))
             try:
                 song: Song = await self.manager.get(Song, id=song_id)
-                self.add_recent(song_id)
                 return song
             except Song.DoesNotExist:
                 pass
+
+    async def send_updates(self) -> None:
+        fs = [
+            ws_client.send_json({"action": "EVENT", "event": "update"})
+            for ws_client in self.ws_clients
+        ]
+        if fs:
+            await asyncio.gather(*fs)
