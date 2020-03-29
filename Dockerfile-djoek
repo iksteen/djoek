@@ -7,8 +7,10 @@ RUN useradd -ms /bin/bash app
 RUN mkdir /app && chown app:app /app
 WORKDIR /app
 USER app
-COPY poetry.lock pyproject.toml migrate.py /app/
-COPY djoek /app/djoek/
+COPY poetry.lock pyproject.toml /app/
+RUN mkdir /app/djoek && touch /app/djoek/__init__.py
 RUN poetry install --no-dev
+COPY migrate.py /app
+COPY djoek /app/djoek/
 CMD poetry run python migrate.py && \
 	poetry run uvicorn --host 0.0.0.0 --log-level warning djoek:app
