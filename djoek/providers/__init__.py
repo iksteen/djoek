@@ -1,25 +1,8 @@
 from abc import ABC, abstractmethod
-from decimal import Decimal
-from typing import List, Optional
-
-from pydantic.main import BaseModel
+from typing import List
 
 from djoek.models import Song
-
-
-class MetadataSchema(BaseModel):
-    title: str
-    tags: List[str]
-    extension: str
-    preview_url: Optional[str]
-    duration: Optional[Decimal]
-
-
-class SearchResultSchema(BaseModel):
-    title: str
-    external_id: str
-    preview_url: Optional[str]
-    duration: Optional[Decimal]
+from djoek.schemas import ItemSchema, MetadataSchema
 
 
 class Provider(ABC):
@@ -34,5 +17,5 @@ class Provider(ABC):
         ...
 
     @abstractmethod
-    async def search(self, query: str) -> List[SearchResultSchema]:
+    async def search(self, query: str) -> List[ItemSchema]:
         ...

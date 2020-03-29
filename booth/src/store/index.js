@@ -47,6 +47,15 @@ const store = new Vuex.Store({
       }
     },
   },
+  getters: {
+    fullPlaylist (state) {
+      return [
+        state.currentSong,
+        state.nextSong,
+        ...state.playlist,
+      ]
+    },
+  },
   modules: {},
 })
 

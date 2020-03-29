@@ -13,6 +13,8 @@ SERVE_PLAYER = os.environ.get("DJOEK_SERVE_PLAYER", "false").lower() in (
     "1",
 )
 
+USER_FORMAT = os.environ.get("DJOEK_USER_FORMAT", "{user.sub}")
+
 MPD_HOST = os.environ.get("DJOEK_MPD_HOST", "localhost")
 DB_URI = os.environ.get("DJOEK_DB_URI", "postgres:///djoek")
 MUSIC_DIR = Path(os.environ.get("DJOEK_MUSIC_DIR", "./music"))

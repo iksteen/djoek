@@ -1,7 +1,7 @@
 import asyncio
 import json
 from math import inf
-from typing import Any, Awaitable, Dict, Optional, cast
+from typing import Any, Awaitable, Dict, Optional
 
 import httpx
 import jose.jws
@@ -84,7 +84,10 @@ class Authenticator:
         f_userinfo.set_result(userinfo)
         return userinfo
 
-    async def verify(self, auth_header: str) -> Dict[str, Any]:
+    async def verify(self, auth_header: Optional[str]) -> Dict[str, Any]:
+        if auth_header is None:
+            raise AuthenticationFailed("no authentication provided")
+
         parts = auth_header.split()
         if len(parts) != 2 or parts[0] != "Bearer":
             raise AuthenticationFailed("invalid authorization header")
@@ -136,11 +139,22 @@ oauth2_scheme = OAuth2(
                 )
             )
         )
-    )
+    ),
+    auto_error=False,
 )
 
 
-async def require_auth(auth_header: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
+async def is_authenticated(auth_header: Optional[str] = Depends(oauth2_scheme)) -> bool:
+    try:
+        await authenticator.verify(auth_header)
+        return True
+    except AuthenticationFailed:
+        return False
+
+
+async def require_auth(
+    auth_header: Optional[str] = Depends(oauth2_scheme),
+) -> Dict[str, Any]:
     try:
         return await authenticator.verify(auth_header)
     except AuthenticationFailed as e:
@@ -158,12 +172,19 @@ async def require_userinfo(
 
 
 async def require_user_id(
-    userinfo: Dict[str, Any] = Depends(require_userinfo),
     manager: Manager = Depends(get_manager),
+    userinfo: Dict[str, Any] = Depends(require_userinfo),
 ) -> int:
-    user_id = await manager.execute(
+    user_id: int = await manager.execute(
         User.insert(sub=userinfo["sub"], profile=userinfo).on_conflict(
             conflict_target=[User.sub], update={User.profile: userinfo}
         )
     )
-    return cast(int, user_id)
+    return user_id
+
+
+async def require_user(
+    user_id: int = Depends(require_user_id), manager: Manager = Depends(get_manager)
+) -> User:
+    user: User = await manager.get(User, id=user_id)
+    return user

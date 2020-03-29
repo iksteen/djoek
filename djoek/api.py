@@ -1,26 +1,30 @@
 import asyncio
 import logging
 import re
-from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypeVar, cast, overload
+from typing import List, cast
 
 import aiofiles
 import aiofiles.os
 import mutagen
 from fastapi import Depends, FastAPI, HTTPException
-from peewee import IntegrityError, fn
+from peewee import JOIN, IntegrityError, fn
 from peewee_async import Manager
-from pydantic import BaseModel
 from starlette.websockets import WebSocket
 
 from djoek import settings
-from djoek.auth import require_auth, require_user_id
-from djoek.models import Song, get_manager
+from djoek.auth import is_authenticated, require_auth, require_user
+from djoek.models import Song, User, get_manager
 from djoek.mpdclient import MPDClient
 from djoek.player import Player, get_player
-from djoek.providers import Provider, SearchResultSchema
+from djoek.providers import Provider
 from djoek.providers.registry import PROVIDERS
+from djoek.schemas import (
+    ItemSchema,
+    LibraryAddSchema,
+    SearchRequestSchema,
+    StatusSchema,
+)
 
 app = FastAPI()
 app.state.ws_clients = []
@@ -28,71 +32,27 @@ app.state.ws_clients = []
 logger = logging.getLogger(__name__)
 WORD_RE = re.compile(r"\w+", re.UNICODE)
 
-T_PlaylistItemSchema = TypeVar("T_PlaylistItemSchema", bound="PlaylistItemSchema")
-
-
-class PlaylistItemSchema(BaseModel):
-    title: str
-    duration: Optional[Decimal]
-
-    @overload
-    @classmethod
-    def from_song(cls, song: None) -> None:
-        ...
-
-    @overload  # noqa: F811
-    @classmethod
-    def from_song(cls, song: Song) -> T_PlaylistItemSchema:
-        ...
-
-    @classmethod  # noqa: F811
-    def from_song(cls, song: Optional[Song]) -> Optional[T_PlaylistItemSchema]:
-        if song is not None:
-            return cls(title=song.title, duration=song.duration)
-        else:
-            return None
-
-
-class StatusSchema(BaseModel):
-    current_song: Optional[PlaylistItemSchema]
-    next_song: Optional[PlaylistItemSchema]
-
-
-class LibraryAddSchema(BaseModel):
-    external_id: str
-    enqueue: bool = True
-
-
-class SearchRequestSchema(BaseModel):
-    provider: str
-    q: str
-
-
-class SearchResponseSchema(BaseModel):
-    provider: str
-    results: List[SearchResultSchema]
-
 
 @app.get("/", response_model=StatusSchema)
-async def status(player: Player = Depends(get_player),) -> StatusSchema:
+async def status(
+    player: Player = Depends(get_player),
+    is_authenticated: bool = Depends(is_authenticated),
+) -> StatusSchema:
     return StatusSchema(
-        current_song=PlaylistItemSchema.from_song(player.current_song),
-        next_song=PlaylistItemSchema.from_song(player.next_song),
+        current_song=ItemSchema.from_song(
+            player.current_song, is_authenticated=is_authenticated
+        ),
+        next_song=ItemSchema.from_song(
+            player.next_song, is_authenticated=is_authenticated
+        ),
     )
 
 
 @app.get(
-    "/playlist/",
-    response_model=List[PlaylistItemSchema],
-    dependencies=[Depends(require_auth)],
+    "/playlist/", response_model=List[ItemSchema], dependencies=[Depends(require_auth)]
 )
-async def playlist_list(
-    player: Player = Depends(get_player),
-) -> List[PlaylistItemSchema]:
-    return [
-        PlaylistItemSchema(title=song.title, duration=song.duration)
-        for song in player.queue
-    ]
+async def playlist_list(player: Player = Depends(get_player)) -> List[ItemSchema]:
+    return [ItemSchema.from_song(song, is_authenticated=True) for song in player.queue]
 
 
 def edge_ngrams(key: str) -> List[str]:
@@ -148,7 +108,7 @@ async def playlist_add(
     task: LibraryAddSchema,
     manager: Manager = Depends(get_manager),
     player: Player = Depends(get_player),
-    user_id: Dict[str, Any] = Depends(require_user_id),
+    user: User = Depends(require_user),
 ) -> str:
     provider_key, content_id = task.external_id.split(":", 1)
     provider = PROVIDERS[provider_key]
@@ -180,11 +140,15 @@ async def playlist_add(
                     external_id=task.external_id,
                     extension=metadata.extension,
                     preview_url=metadata.preview_url,
-                    user_id=user_id,
+                    user=user,
                 )
                 await download(manager, provider, content_id, song)
         except IntegrityError:
-            song = await manager.get(Song, external_id=task.external_id)
+            song = await manager.get(
+                Song.select(Song, User)
+                .join(User, JOIN.LEFT_OUTER)
+                .where(Song.external_id == task.external_id)
+            )
             song.title = metadata.title
             song.search_field = search_value
             await download(manager, provider, content_id, song, False)
@@ -203,26 +167,18 @@ async def playlist_add(
 
 
 @app.post(
-    "/search/",
-    response_model=List[SearchResultSchema],
-    dependencies=[Depends(require_auth)],
+    "/search/", response_model=List[ItemSchema], dependencies=[Depends(require_auth)],
 )
 async def search(
     query: SearchRequestSchema, manager: Manager = Depends(get_manager)
-) -> List[SearchResultSchema]:
+) -> List[ItemSchema]:
     if query.provider == "local":
         songs = await manager.execute(
-            Song.select().where(Song.search_field.match(query.q, plain=True))
+            Song.select(Song, User)
+            .join(User, JOIN.LEFT_OUTER)
+            .where(Song.search_field.match(query.q, plain=True))
         )
-        return [
-            SearchResultSchema(
-                title=song.title,
-                external_id=song.external_id,
-                preview_url=song.preview_url,
-                duration=song.duration,
-            )
-            for song in songs
-        ]
+        return [ItemSchema.from_song(song, is_authenticated=True) for song in songs]
 
     provider = PROVIDERS[query.provider]
     return await provider.search(query.q)

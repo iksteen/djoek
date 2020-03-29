@@ -8,7 +8,8 @@ import isodate
 
 import djoek.settings as settings
 from djoek.models import Song
-from djoek.providers import MetadataSchema, Provider, SearchResultSchema
+from djoek.providers import Provider
+from djoek.schemas import ItemSchema, MetadataSchema
 
 YOUTUBE_URL_RE = re.compile(
     r"^(?:https?://(?:[^/]+.)?youtube.com/watch\?(?:v=|.*&v=)|https?://youtu.be/|youtube:)([a-zA-Z0-9_-]{11})"
@@ -75,13 +76,13 @@ class YouTubeProvider(Provider):
         )
         await process.communicate()
 
-    async def search(self, query: str) -> List[SearchResultSchema]:
+    async def search(self, query: str) -> List[ItemSchema]:
         m = YOUTUBE_URL_RE.match(query)
         if m is not None:
             content_id = m.group(1)
             metadata = await self.get_metadata(content_id)
             return [
-                SearchResultSchema(
+                ItemSchema(
                     title=metadata.title,
                     external_id=f"{self.key}:{content_id}",
                     preview_url=f"https://youtu.be/{content_id}",
@@ -118,7 +119,7 @@ class YouTubeProvider(Provider):
             }
 
         return [
-            SearchResultSchema(
+            ItemSchema(
                 title=html.unescape(item["snippet"]["title"]),
                 external_id=f"{self.key}:{item['id']['videoId']}",
                 preview_url=f"https://youtu.be/{item['id']['videoId']}",

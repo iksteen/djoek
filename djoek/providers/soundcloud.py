@@ -7,7 +7,8 @@ import httpx
 
 import djoek.settings as settings
 from djoek.models import Song
-from djoek.providers import MetadataSchema, Provider, SearchResultSchema
+from djoek.providers import Provider
+from djoek.schemas import ItemSchema, MetadataSchema
 
 
 def get_title(item: Dict[str, Any]) -> str:
@@ -57,7 +58,7 @@ class SoundcloudProvider(Provider):
         async with aiofiles.open(song.path, "wb") as f:
             await f.write(data)
 
-    async def search(self, query: str) -> List[SearchResultSchema]:
+    async def search(self, query: str) -> List[ItemSchema]:
         async with httpx.AsyncClient() as client:
             r = await client.get(
                 "https://api-v2.soundcloud.com/search/tracks",
@@ -71,7 +72,7 @@ class SoundcloudProvider(Provider):
         result = r.json()
 
         return [
-            SearchResultSchema(
+            ItemSchema(
                 title=get_title(item),
                 external_id=f"{self.key}:{item['id']}",
                 preview_url=item["permalink_url"],

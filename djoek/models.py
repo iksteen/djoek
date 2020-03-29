@@ -1,6 +1,6 @@
 from base64 import urlsafe_b64encode
 from pathlib import Path
-from typing import cast
+from typing import Optional, cast
 
 from fastapi import FastAPI
 from peewee import AutoField, DecimalField, ForeignKeyField, Model, TextField
@@ -73,3 +73,10 @@ class Song(Model):
     @property
     def content_id(self) -> str:
         return cast(str, self.external_id.split(":", 1)[1])
+
+    @property
+    def username(self) -> Optional[str]:
+        if self.user is not None:
+            return settings.USER_FORMAT.format(user=self.user)
+        else:
+            return None

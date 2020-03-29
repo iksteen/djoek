@@ -8,12 +8,13 @@ from typing import List, Optional, cast
 
 import aiofiles
 from fastapi import FastAPI
+from peewee import JOIN
 from peewee_async import Manager
 from starlette.requests import Request
 from starlette.websockets import WebSocket
 
 from djoek import settings
-from djoek.models import Song
+from djoek.models import Song, User
 from djoek.mpdclient import MPDClient, MPDCommandError
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,9 @@ class Player:
         else:
             queue_ids = state.get("queue", [])
             songs = await self.manager.execute(
-                Song.select().where(Song.id.in_(queue_ids))
+                Song.select(Song, User)
+                .join(User, JOIN.LEFT_OUTER)
+                .where(Song.id.in_(queue_ids))
             )
             self.queue = sorted(songs, key=lambda song: queue_ids.index(song.id))
             self.recent = state.get("recent", [])
@@ -176,7 +179,12 @@ class Player:
             return cast(
                 Song,
                 await self.manager.get(
-                    Song, external_id=song_external_id, extension=extension
+                    Song.select(Song, User)
+                    .join(User, JOIN.LEFT_OUTER)
+                    .where(
+                        Song.external_id == song_external_id,
+                        Song.extension == extension,
+                    ),
                 ),
             )
         except Song.DoesNotExist:

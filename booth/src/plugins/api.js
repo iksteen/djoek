@@ -6,6 +6,20 @@ let instance
 
 export const getInstance = () => instance
 
+function transformItemSchema (song) {
+  if (song === null) {
+    return null
+  }
+  const { title, duration, external_id: externalId, preview_url: previewUrl, username } = song
+  return {
+    title,
+    duration,
+    externalId,
+    previewUrl,
+    username,
+  }
+}
+
 const useApi = () => {
   if (instance) return instance
 
@@ -28,13 +42,16 @@ const useApi = () => {
       async getStatus () {
         const {
           data: { current_song: currentSong, next_song: nextSong },
-        } = await Axios.get('/api/')
-        return { currentSong, nextSong }
+        } = await this.authRequest('get', '/api/')
+        return {
+          currentSong: transformItemSchema(currentSong),
+          nextSong: transformItemSchema(nextSong),
+        }
       },
 
       async getPlaylist () {
         const { data } = await this.authRequest('get', '/api/playlist/')
-        return data
+        return data.map(transformItemSchema)
       },
 
       async download (externalId, enqueue = true) {
@@ -49,12 +66,7 @@ const useApi = () => {
           q: query,
           provider,
         })
-        return data.map(({ title, external_id: externalId, preview_url: previewUrl, duration }) => ({
-          title,
-          externalId,
-          previewUrl,
-          duration,
-        }))
+        return data.map(transformItemSchema)
       },
 
       formatDuration (duration) {
