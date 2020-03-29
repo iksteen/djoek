@@ -39,6 +39,7 @@ services:
       - DJOEK_AUTH0_PARTIES=${DJOEK_AUTH0_PARTIES}
       - DJOEK_GOOGLE_API_KEY=${DJOEK_GOOGLE_API_KEY}
       - DJOEK_SOUNDCLOUD_CLIENT_ID=${DJOEK_SOUNDCLOUD_CLIENT_ID}
+      - DJOEK_USER_FORMAT=${DJOEK_USER_FORMAT}
     volumes:
       - ./data/music:/music
       - ./data/djoek:/djoek
