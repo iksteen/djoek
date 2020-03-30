@@ -223,18 +223,28 @@ async def vote_up(
     # From this point on, don't trust app state to prevent race conditions
     # due to asynchronicity.
 
+    current_vote = votes.get(user_id)
+    ignore_increase = False
+
     if direction is VoteDirection.up:
         if current_song.user_id is None:
-            raise HTTPException(
-                status_code=HTTP_400_BAD_REQUEST, detail="Can't upvote unclaimed song.",
-            )
+            if current_vote is VoteDirection.down:
+                ignore_increase = True
+            else:
+                raise HTTPException(
+                    status_code=HTTP_400_BAD_REQUEST,
+                    detail="Can't upvote unclaimed song.",
+                )
 
         if current_song.user_id == user_id:
-            raise HTTPException(
-                status_code=HTTP_400_BAD_REQUEST, detail="Can't upvote your own songs.",
-            )
+            if current_vote is VoteDirection.down:
+                ignore_increase = True
+            else:
+                raise HTTPException(
+                    status_code=HTTP_400_BAD_REQUEST,
+                    detail="Can't upvote your own songs.",
+                )
 
-    current_vote = votes.get(user_id)
     if current_vote is direction:
         return
 
@@ -254,9 +264,10 @@ async def vote_up(
                         Song.id == current_song.id
                     )
                 )
-            await manager.execute(
-                Song.update({field: field + 1}).where(Song.id == current_song.id)
-            )
+            if not ignore_increase:
+                await manager.execute(
+                    Song.update({field: field + 1}).where(Song.id == current_song.id)
+                )
     except DatabaseError:
         votes[user_id] = current_vote
         raise
@@ -269,7 +280,8 @@ async def vote_up(
             counter_field.name,
             getattr(current_song, counter_field.name) - 1,
         )
-    setattr(current_song, field.name, getattr(current_song, field.name) + 1)
+    if not ignore_increase:
+        setattr(current_song, field.name, getattr(current_song, field.name) + 1)
 
     await send_updates(app.state.ws_clients)
 
