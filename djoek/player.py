@@ -16,6 +16,7 @@ from starlette.websockets import WebSocket
 from djoek import settings
 from djoek.models import Song, User
 from djoek.mpdclient import MPDClient, MPDCommandError
+from djoek.util import send_updates
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ class Player:
         self.queue.append(song)
         await self.save_state()
         await self.check_playlist()
-        await self.send_updates()
+        await send_updates(self.ws_clients)
         return True
 
     async def add_recent(self, song: Song) -> None:
@@ -159,7 +160,7 @@ class Player:
             self.next_song = await self.get_song_by_playlist_id(next_song_id)
 
         if playlist_updated:
-            await self.send_updates()
+            await send_updates(self.ws_clients)
 
         return False
 
@@ -214,11 +215,3 @@ class Player:
                 return song
             except Song.DoesNotExist:
                 pass
-
-    async def send_updates(self) -> None:
-        fs = [
-            ws_client.send_json({"action": "EVENT", "event": "update"})
-            for ws_client in self.ws_clients
-        ]
-        if fs:
-            await asyncio.gather(*fs)

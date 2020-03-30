@@ -28,6 +28,7 @@ from djoek.schemas import (
     SearchRequestSchema,
     StatusSchema,
 )
+from djoek.util import send_updates
 
 app = FastAPI()
 app.state.ws_clients = []
@@ -261,6 +262,16 @@ async def vote_up(
         raise
     finally:
         voting.remove(user_id)
+
+    if current_vote is not None:
+        setattr(
+            current_song,
+            counter_field.name,
+            getattr(current_song, counter_field.name) - 1,
+        )
+    setattr(current_song, field.name, getattr(current_song, field.name) + 1)
+
+    await send_updates(app.state.ws_clients)
 
 
 @app.websocket("/events")
