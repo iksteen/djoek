@@ -44,14 +44,11 @@
       <search-result
         v-for="result in results"
         :key="`${result.provider}:${result.externalId}`"
-        :title="result.title"
-        :provider="result.provider"
-        :duration="result.duration"
+        :item="result"
         :disabled="!!downloading"
         :loading="downloading === result.externalId"
         @download="download(result.externalId, false)"
         @enqueue="download(result.externalId, true)"
-        @preview="preview(result.previewUrl)"
       />
     </div>
   </div>
@@ -160,10 +157,6 @@
           this.downloading = null
           this.error = e
         }
-      },
-
-      preview (url) {
-        window.open(url, '_blank', 'noopener,noreferrer')
       },
 
       ...mapActions({
