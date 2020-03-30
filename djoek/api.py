@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+from enum import Enum
 from pathlib import Path
 from typing import List, cast
 
@@ -8,12 +9,14 @@ import aiofiles
 import aiofiles.os
 import mutagen
 from fastapi import Depends, FastAPI, HTTPException
-from peewee import JOIN, IntegrityError, fn
+from peewee import JOIN, DatabaseError, IntegrityError, fn
 from peewee_async import Manager
+from starlette.responses import Response
+from starlette.status import HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from starlette.websockets import WebSocket
 
 from djoek import settings
-from djoek.auth import is_authenticated, require_auth, require_user
+from djoek.auth import is_authenticated, require_auth, require_user, require_user_id
 from djoek.models import Song, User, get_manager
 from djoek.mpdclient import MPDClient
 from djoek.player import Player, get_player
@@ -28,9 +31,17 @@ from djoek.schemas import (
 
 app = FastAPI()
 app.state.ws_clients = []
+app.state.vote_song_id = None
+app.state.voting = set()
+app.state.votes = {}
 
 logger = logging.getLogger(__name__)
 WORD_RE = re.compile(r"\w+", re.UNICODE)
+
+
+class VoteDirection(Enum):
+    up = "up"
+    down = "down"
 
 
 @app.get("/", response_model=StatusSchema)
@@ -182,6 +193,74 @@ async def search(
 
     provider = PROVIDERS[query.provider]
     return await provider.search(query.q)
+
+
+@app.post("/vote/{direction}", status_code=HTTP_204_NO_CONTENT, response_class=Response)
+async def vote_up(
+    direction: VoteDirection,
+    user_id: int = Depends(require_user_id),
+    player: Player = Depends(get_player),
+    manager: Manager = Depends(get_manager),
+) -> None:
+    if player.current_song_id is None or player.current_song is None:
+        return
+
+    if direction is VoteDirection.up:
+        field, counter_field = Song.upvotes, Song.downvotes
+    else:
+        field, counter_field = Song.downvotes, Song.upvotes
+
+    if player.current_song_id != app.state.vote_song_id:
+        app.state.vote_song_id = player.current_song_id
+        app.state.voting = set()
+        app.state.votes = {}
+
+    current_song = player.current_song
+    voting = app.state.voting
+    votes = app.state.votes
+
+    # From this point on, don't trust app state to prevent race conditions
+    # due to asynchronicity.
+
+    if direction is VoteDirection.up:
+        if current_song.user_id is None:
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST, detail="Can't upvote unclaimed song.",
+            )
+
+        if current_song.user_id == user_id:
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST, detail="Can't upvote your own songs.",
+            )
+
+    current_vote = votes.get(user_id)
+    if current_vote is direction:
+        return
+
+    if user_id in voting:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST, detail="Have some patience."
+        )
+    voting.add(user_id)
+
+    votes[user_id] = direction
+
+    try:
+        async with manager.atomic():
+            if current_vote is not None:
+                await manager.execute(
+                    Song.update({counter_field: counter_field - 1}).where(
+                        Song.id == current_song.id
+                    )
+                )
+            await manager.execute(
+                Song.update({field: field + 1}).where(Song.id == current_song.id)
+            )
+    except DatabaseError:
+        votes[user_id] = current_vote
+        raise
+    finally:
+        voting.remove(user_id)
 
 
 @app.websocket("/events")
