@@ -2,7 +2,7 @@
   <div @click="$emit('activate')">
     <div
       v-if="!activated"
-      class="py-3 d-flex"
+      class="py-3 d-flex align-center"
     >
       <div
         class="text-truncate"
@@ -12,12 +12,22 @@
         class="pl-1 ml-auto grey--text text--lighten-1"
         v-text="duration"
       />
+      <div
+        v-if="rating !== null"
+        class="pl-1 caption  grey--text text--lighten-1"
+      >
+        ({{ rating }})
+      </div>
     </div>
     <div
       v-if="activated"
       class="mt-3"
     >
-      <item-card :item="item" />
+      <item-card :item="item">
+        <template v-slot:actions>
+          <slot name="actions" />
+        </template>
+      </item-card>
     </div>
   </div>
 </template>
@@ -42,6 +52,13 @@
       },
       duration () {
         return this.$api.formatDuration(this.item ? this.item.duration : null)
+      },
+      rating () {
+        if (this.item === null || this.item.upvotes === null || this.item.downvotes === null) {
+          return null
+        }
+        const rating = this.item.upvotes - this.item.downvotes
+        return (rating > 0 ? '+' : '') + rating
       },
     },
   }

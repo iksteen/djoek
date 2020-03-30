@@ -18,7 +18,20 @@
       :item="currentSong"
       :activated="isActive(currentSong)"
       @activate="toggleActive(currentSong)"
-    />
+    >
+      <template v-slot:actions>
+        <vote-button
+          direction="up"
+          :votes="currentSong.upvotes"
+          @click="$api.vote('up')"
+        />
+        <vote-button
+          direction="down"
+          :votes="currentSong.downvotes"
+          @click="$api.vote('down')"
+        />
+      </template>
+    </playlist-item>
     <v-subheader class="px-0">
       Up next
     </v-subheader>
@@ -37,10 +50,12 @@
   import PlaylistItem from './PlaylistItem'
   import StreamCaster from './StreamCaster'
   import StreamPlayer from './StreamPlayer'
+  import VoteButton from './VoteButton'
 
   export default {
     name: 'Playlist',
     components: {
+      VoteButton,
       PlaylistItem,
       StreamCaster,
       StreamPlayer,

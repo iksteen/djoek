@@ -10,13 +10,15 @@ function transformItemSchema (song) {
   if (song === null) {
     return null
   }
-  const { title, duration, external_id: externalId, preview_url: previewUrl, username } = song
+  const { title, duration, external_id: externalId, preview_url: previewUrl, username, upvotes, downvotes } = song
   return {
     title,
     duration,
     externalId,
     previewUrl,
     username,
+    upvotes,
+    downvotes,
   }
 }
 
@@ -67,6 +69,10 @@ const useApi = () => {
           provider,
         })
         return data.map(transformItemSchema)
+      },
+
+      async vote (direction) {
+        await this.authRequest('post', `/api/vote/${direction}`, null)
       },
 
       formatDuration (duration) {
