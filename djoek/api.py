@@ -224,26 +224,17 @@ async def vote_up(
     # due to asynchronicity.
 
     current_vote = votes.get(user_id)
-    ignore_increase = False
 
-    if direction is VoteDirection.up:
+    if direction is VoteDirection.up and current_vote is not VoteDirection.down:
         if current_song.user_id is None:
-            if current_vote is VoteDirection.down:
-                ignore_increase = True
-            else:
-                raise HTTPException(
-                    status_code=HTTP_400_BAD_REQUEST,
-                    detail="Can't upvote unclaimed song.",
-                )
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST, detail="Can't upvote unclaimed song.",
+            )
 
         if current_song.user_id == user_id:
-            if current_vote is VoteDirection.down:
-                ignore_increase = True
-            else:
-                raise HTTPException(
-                    status_code=HTTP_400_BAD_REQUEST,
-                    detail="Can't upvote your own songs.",
-                )
+            raise HTTPException(
+                status_code=HTTP_400_BAD_REQUEST, detail="Can't upvote your own songs.",
+            )
 
     if current_vote is direction:
         return
@@ -254,7 +245,7 @@ async def vote_up(
         )
     voting.add(user_id)
 
-    votes[user_id] = direction
+    votes[user_id] = direction if current_vote is None else None
 
     try:
         async with manager.atomic():
@@ -264,7 +255,7 @@ async def vote_up(
                         Song.id == current_song.id
                     )
                 )
-            if not ignore_increase:
+            else:
                 await manager.execute(
                     Song.update({field: field + 1}).where(Song.id == current_song.id)
                 )
@@ -280,7 +271,7 @@ async def vote_up(
             counter_field.name,
             getattr(current_song, counter_field.name) - 1,
         )
-    if not ignore_increase:
+    else:
         setattr(current_song, field.name, getattr(current_song, field.name) + 1)
 
     await send_updates(app.state.ws_clients)
