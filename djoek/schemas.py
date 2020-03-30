@@ -14,6 +14,8 @@ class ItemSchema(BaseModel):
     external_id: str
     preview_url: str
     username: Optional[str]
+    upvotes: Optional[int]
+    downvotes: Optional[int]
 
     @classmethod
     @overload
@@ -36,6 +38,8 @@ class ItemSchema(BaseModel):
                 external_id=song.external_id,
                 preview_url=song.preview_url,
                 username=song.username if is_authenticated else None,
+                upvotes=song.upvotes,
+                downvotes=song.downvotes,
             )
         else:
             return None

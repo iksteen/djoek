@@ -3,7 +3,15 @@ from pathlib import Path
 from typing import Optional, cast
 
 from fastapi import FastAPI
-from peewee import AutoField, DecimalField, ForeignKeyField, Model, TextField
+from peewee import (
+    SQL,
+    AutoField,
+    DecimalField,
+    ForeignKeyField,
+    IntegerField,
+    Model,
+    TextField,
+)
 from peewee_async import Manager
 from peewee_asyncext import PooledPostgresqlExtDatabase
 from playhouse.postgres_ext import ArrayField, JSONField, TSVectorField
@@ -52,6 +60,8 @@ class Song(Model):
     preview_url = TextField(null=True)
     duration = DecimalField(null=True)
     user = ForeignKeyField(User, null=True)
+    upvotes = IntegerField(constraints=[SQL("DEFAULT 0")])
+    downvotes = IntegerField(constraints=[SQL("DEFAULT 0")])
 
     @property
     def filename(self) -> str:
@@ -80,3 +90,8 @@ class Song(Model):
             return settings.USER_FORMAT.format(user=self.user)
         else:
             return None
+
+    @property
+    def rating(self) -> int:
+        rating: int = self.upvotes - self.downvotes
+        return rating

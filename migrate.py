@@ -95,6 +95,18 @@ def migrate_submitter() -> None:
     )
 
 
+def migrate_rating() -> None:
+    database.execute_sql(
+        """
+        ALTER TABLE song ADD COLUMN upvotes INTEGER DEFAULT 0;
+        ALTER TABLE song ADD COLUMN downvotes INTEGER DEFAULT 0;
+        UPDATE song SET upvotes = 0, downvotes = 0;
+        ALTER TABLE song ALTER COLUMN upvotes SET NOT NULL;
+        ALTER TABLE song ALTER COLUMN downvotes SET NOT NULL;
+        """
+    )
+
+
 if __name__ == "__main__":
     db_config = parse_dsn(settings.DB_URI)
     database.init(db_config.pop("dbname"), **db_config)
@@ -116,3 +128,6 @@ if __name__ == "__main__":
 
     if not column_exists("user_id"):
         migrate_submitter()
+
+    if not column_exists("upvotes"):
+        migrate_rating()
