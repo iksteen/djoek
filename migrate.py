@@ -50,7 +50,7 @@ def migrate_preview_url() -> None:
 def migrate_duration() -> None:
     database.execute_sql(
         """
-        ALTER TABLE song ADD COLUMN duration NUMERIC
+        ALTER TABLE song ADD COLUMN duration NUMERIC(10, 5)
         """
     )
     for song in Song.select():
