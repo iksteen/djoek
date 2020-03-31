@@ -20,6 +20,23 @@
       @activate="toggleActive(currentSong)"
     >
       <template v-slot:actions>
+        <v-tooltip
+          v-if="currentSong !== null && currentSong.username === null"
+          bottom
+        >
+          <template v-slot:activator="{ on }">
+            <v-btn
+              icon
+              v-on="on"
+              @click.stop="claim()"
+            >
+              <v-icon>
+                mdi-hand
+              </v-icon>
+            </v-btn>
+          </template>
+          <span>Claim as yours.</span>
+        </v-tooltip>
         <vote-button
           direction="up"
           :votes="currentSong.upvotes"
@@ -89,6 +106,9 @@
       },
       isActive (song) {
         return song !== null && song.externalId === this.active
+      },
+      claim () {
+        this.$api.claim()
       },
     },
   }

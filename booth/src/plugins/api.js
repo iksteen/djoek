@@ -72,7 +72,11 @@ const useApi = () => {
       },
 
       async vote (direction) {
-        await this.authRequest('post', `/api/vote/${direction}`, null)
+        await this.authRequest('post', `/api/current/vote/${direction}`, null)
+      },
+
+      async claim () {
+        await this.authRequest('post', '/api/current/user', null)
       },
 
       formatDuration (duration) {

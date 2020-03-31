@@ -196,7 +196,11 @@ async def search(
     return await provider.search(query.q)
 
 
-@app.post("/vote/{direction}", status_code=HTTP_204_NO_CONTENT, response_class=Response)
+@app.post(
+    "/current/vote/{direction}",
+    status_code=HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 async def vote_up(
     direction: VoteDirection,
     user_id: int = Depends(require_user_id),
@@ -275,6 +279,23 @@ async def vote_up(
         setattr(current_song, field.name, getattr(current_song, field.name) + 1)
 
     await send_updates(app.state.ws_clients)
+
+
+@app.post("/current/user", status_code=HTTP_204_NO_CONTENT, response_class=Response)
+async def claim(
+    user: User = Depends(require_user),
+    player: Player = Depends(get_player),
+    manager: Manager = Depends(get_manager),
+) -> None:
+    current_song = player.current_song
+    if current_song is not None and current_song.user_id is None:
+        await manager.execute(
+            Song.update(user_id=user.id).where(
+                Song.id == current_song.id, Song.user_id.is_null()
+            )
+        )
+        current_song.user = user
+        await send_updates(app.state.ws_clients)
 
 
 @app.websocket("/events")
