@@ -196,22 +196,42 @@ class Player:
             return self.queue.pop(0)
 
         while True:
-            song_ids = {
-                song.id for song in await self.manager.execute(Song.select(Song.id))
+            songs = {
+                song.id: song.rating_
+                for song in await self.manager.execute(
+                    Song.select(
+                        Song.id, (Song.upvotes - Song.downvotes).alias("rating_")
+                    ).order_by((Song.upvotes - Song.downvotes).desc(), Song.id)
+                )
             }
-            if not song_ids:
+            if not songs:
                 return None
 
-            recent = [recent_id for recent_id in self.recent if recent_id in song_ids]
-            if self.next_song is not None and self.next_song.id in song_ids:
+            # Normalize rating to start at 1.
+            min_rating = min(songs.values())
+            for key in songs.keys():
+                songs[key] -= min_rating - 1
+
+            recent = self.recent.copy()
+            if self.next_song is not None and self.next_song.id in songs:
                 recent.append(self.next_song.id)
 
-            if len(song_ids) > 1:
-                song_ids -= set(recent[-min(len(recent), len(song_ids) - 1) :])
+            # If length of songs is 1 the recent slicing will not work as expected.
+            if len(songs) > 1:
+                for recent_id in recent[-min(len(recent), len(songs) - 1) :]:
+                    if recent_id in songs:
+                        del songs[recent_id]
 
-            song_id = random.choice(tuple(song_ids))
+            # Weighted random selection.
+            i = random.randint(1, sum(songs.values()))
+            for song_id, weight in songs.items():
+                i -= weight
+                if i <= 0:
+                    break
+
             try:
                 song: Song = await self.manager.get(Song, id=song_id)
                 return song
             except Song.DoesNotExist:
+                # Song was deleted from database in between the selection and here.
                 pass
