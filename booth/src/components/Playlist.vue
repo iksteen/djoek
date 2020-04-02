@@ -28,7 +28,7 @@
             <v-btn
               icon
               v-on="on"
-              @click.stop="claim()"
+              @click.stop="$api.claim()"
             >
               <v-icon>
                 mdi-hand
@@ -106,9 +106,6 @@
       },
       isActive (song) {
         return song !== null && song.externalId === this.active
-      },
-      claim () {
-        this.$api.claim()
       },
     },
   }
