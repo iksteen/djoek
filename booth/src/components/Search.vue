@@ -23,13 +23,14 @@
         />
       </template>
     </v-text-field>
-    &nbsp;
+
     <div
       v-if="lastQuery && !results.length"
       class="subtitle-1"
     >
       <em>No results for {{ lastQuery }}.</em>
     </div>
+
     <v-alert
       v-if="error"
       type="error"
@@ -38,9 +39,6 @@
     </v-alert>
 
     <div v-if="lastQuery && results.length > 0">
-      <div class="subtitle-1">
-        Results for {{ lastQuery }}:
-      </div>
       <search-result
         v-for="result in results"
         :key="`${result.provider}:${result.externalId}`"

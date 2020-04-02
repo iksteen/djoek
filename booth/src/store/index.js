@@ -48,9 +48,8 @@ const store = new Vuex.Store({
     },
   },
   getters: {
-    fullPlaylist (state) {
+    upNext (state) {
       return [
-        state.currentSong,
         state.nextSong,
         ...state.playlist,
       ]

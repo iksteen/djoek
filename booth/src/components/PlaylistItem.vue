@@ -2,26 +2,26 @@
   <div @click="$emit('activate')">
     <div
       v-if="!activated"
-      class="py-3 d-flex align-center"
+      class="my-3 d-flex align-center"
     >
       <div
-        class="text-truncate"
+        class="text-truncate mr-auto"
         v-text="title"
       />
       <div
-        class="pl-1 ml-auto grey--text text--lighten-1"
+        class="ml-1 grey--text text--lighten-1"
         v-text="duration"
       />
       <div
         v-if="rating !== null"
-        class="pl-1 caption  grey--text text--lighten-1"
+        class="ml-1 caption  grey--text text--lighten-1"
       >
         ({{ rating }})
       </div>
     </div>
     <div
       v-if="activated"
-      class="mt-3"
+      class="my-3"
     >
       <item-card :item="item">
         <template v-slot:actions>

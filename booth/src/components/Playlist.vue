@@ -9,15 +9,18 @@
         <stream-player />
       </div>
     </div>
-    <v-divider class="mb-4" />
+    <v-divider class="mb-5" />
 
-    <v-subheader class="px-0">
+    <v-subheader
+      class="px-0"
+      style="margin-bottom: 18px"
+    >
       Now playing
     </v-subheader>
+
     <playlist-item
       :item="currentSong"
-      :activated="isActive(currentSong)"
-      @activate="toggleActive(currentSong)"
+      :activated="true"
     >
       <template v-slot:actions>
         <v-tooltip
@@ -53,7 +56,7 @@
       Up next
     </v-subheader>
     <playlist-item
-      v-for="(item, i) in fullPlaylist.slice(1)"
+      v-for="(item, i) in upNext"
       :key="i"
       :item="item"
       :activated="isActive(item)"
@@ -84,10 +87,10 @@
     },
     computed: {
       ...mapState(['currentSong']),
-      ...mapGetters(['fullPlaylist']),
+      ...mapGetters(['upNext']),
     },
     watch: {
-      fullPlaylist (playlist) {
+      upNext (playlist) {
         if (this.active !== null && !playlist.reduce(
           (result, item) => (result || item.externalId === this.active),
           false,
