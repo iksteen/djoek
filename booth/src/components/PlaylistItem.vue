@@ -34,6 +34,7 @@
 
 <script>
   import ItemCard from './ItemCard'
+  import { formatDuration, formatRating } from '../utils'
 
   export default {
     name: 'PlaylistItem',
@@ -51,14 +52,10 @@
         return this.item ? this.item.title : 'unknown'
       },
       duration () {
-        return this.$api.formatDuration(this.item ? this.item.duration : null)
+        return formatDuration(this.item ? this.item.duration : null)
       },
       rating () {
-        if (this.item === null || this.item.upvotes === null || this.item.downvotes === null) {
-          return null
-        }
-        const rating = this.item.upvotes - this.item.downvotes
-        return (rating > 0 ? '+' : '') + rating
+        return formatRating(this.item)
       },
     },
   }

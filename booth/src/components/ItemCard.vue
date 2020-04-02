@@ -15,7 +15,7 @@
         />
         <div
           class="ml-auto"
-          v-text="$api.formatDuration(item.duration)"
+          v-text="duration"
         />
       </div>
       <div
@@ -45,6 +45,8 @@
 </template>
 
 <script>
+  import { formatDuration } from '../utils'
+
   export default {
     name: 'ItemCard',
 
@@ -52,6 +54,12 @@
       item: Object,
       disabled: Boolean,
       loading: Boolean,
+    },
+
+    computed: {
+      duration () {
+        return formatDuration(this.item.duration)
+      },
     },
 
     methods: {
