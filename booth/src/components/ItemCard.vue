@@ -8,7 +8,7 @@
     <v-card-text
       class="subtitle-1"
     >
-      <div class="d-flex">
+      <div class="d-flex align-center">
         <div
           class="white--text"
           v-text="item.title"
@@ -17,6 +17,12 @@
           class="ml-auto"
           v-text="duration"
         />
+        <div
+          v-if="rating !== null"
+          class="pl-1 caption"
+        >
+          ({{ rating }})
+        </div>
       </div>
       <div
         v-if="item.username"
@@ -45,7 +51,7 @@
 </template>
 
 <script>
-  import { formatDuration } from '../utils'
+  import { formatDuration, formatRating } from '../utils'
 
   export default {
     name: 'ItemCard',
@@ -59,6 +65,10 @@
     computed: {
       duration () {
         return formatDuration(this.item.duration)
+      },
+
+      rating () {
+        return formatRating(this.item)
       },
     },
 
