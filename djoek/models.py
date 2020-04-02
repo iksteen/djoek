@@ -60,8 +60,8 @@ class Song(Model):
     preview_url = TextField(null=True)
     duration = DecimalField(null=True)
     user = ForeignKeyField(User, null=True)
-    upvotes = IntegerField(constraints=[SQL("DEFAULT 0")])
-    downvotes = IntegerField(constraints=[SQL("DEFAULT 0")])
+    upvotes = IntegerField(default=0, constraints=[SQL("DEFAULT 0")])
+    downvotes = IntegerField(default=0, constraints=[SQL("DEFAULT 0")])
 
     @property
     def filename(self) -> str:
