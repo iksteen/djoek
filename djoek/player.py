@@ -201,7 +201,7 @@ class Player:
                 for song in await self.manager.execute(
                     Song.select(
                         Song.id, (Song.upvotes - Song.downvotes).alias("rating_")
-                    ).order_by((Song.upvotes - Song.downvotes).desc(), Song.id)
+                    ).order_by(Song.id)
                 )
             }
             if not songs:
