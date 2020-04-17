@@ -68,10 +68,9 @@ class YouTubeProvider(Provider):
             "mp3",
             "--audio-quality",
             "1",
-            "--audio-format",
-            "mp3",
             "-o",
             f"{basename}.%(ext)s",
+            "--no-cache-dir",
             f"https://www.youtube.com/watch?v={content_id}",
         )
         await process.communicate()
