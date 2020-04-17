@@ -20,7 +20,7 @@ def migrate_extension() -> None:
         """
     )
 
-    for song in Song.select():
+    for song in Song.select(Song.id, Song.external_id, Song.extension):
         old_path = os.path.join(settings.MUSIC_DIR, f"{song.id}{song.extension}")
         new_path = os.path.join(settings.MUSIC_DIR, song.filename)
         if os.path.exists(old_path):
@@ -53,7 +53,7 @@ def migrate_duration() -> None:
         ALTER TABLE song ADD COLUMN duration NUMERIC(10, 5)
         """
     )
-    for song in Song.select():
+    for song in Song.select(Song.id, Song.external_id, Song.extension):
         path = os.path.join(settings.MUSIC_DIR, song.filename)
         try:
             m = mutagen.File(path)
