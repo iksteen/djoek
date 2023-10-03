@@ -1,7 +1,7 @@
 import asyncio
 import json
 from math import inf
-from typing import Any, Awaitable, Dict, Optional
+from typing import Any, Awaitable, MutableMapping, Optional
 
 import httpx
 import jose.jws
@@ -23,13 +23,14 @@ class AuthenticationFailed(Exception):
 
 
 class Authenticator:
-    _keyset_future: Optional[Awaitable[Dict[str, Any]]]
+    _keyset_future: Optional[Awaitable[dict[str, Any]]]
+    _userinfo_cache: MutableMapping[str, Awaitable[dict[str, Any]]]
 
     def __init__(self) -> None:
         self._keyset_future = None
         self._userinfo_cache = TTLCache(inf, 3600)
 
-    async def get_keys(self, *, force: bool = False) -> Dict[str, Any]:
+    async def get_keys(self, *, force: bool = False) -> dict[str, Any]:
         loop = asyncio.get_event_loop()
 
         if self._keyset_future is not None and not force:
@@ -57,10 +58,10 @@ class Authenticator:
             raise
         return keyset
 
-    async def get_userinfo(self, auth_header: str, sub: str) -> Dict[str, Any]:
+    async def get_userinfo(self, auth_header: str, sub: str) -> dict[str, Any]:
         loop = asyncio.get_event_loop()
 
-        userinfo: Dict[str, Any]
+        userinfo: dict[str, Any]
 
         f_userinfo = self._userinfo_cache.get(sub)
         if f_userinfo is not None:
@@ -84,7 +85,7 @@ class Authenticator:
         f_userinfo.set_result(userinfo)
         return userinfo
 
-    async def verify(self, auth_header: Optional[str]) -> Dict[str, Any]:
+    async def verify(self, auth_header: Optional[str]) -> dict[str, Any]:
         if auth_header is None:
             raise AuthenticationFailed("no authentication provided")
 
@@ -116,7 +117,7 @@ class Authenticator:
                 raise AuthenticationFailed("key not found")
 
         try:
-            decoded_token: Dict[str, Any] = jose.jwt.decode(
+            decoded_token: dict[str, Any] = jose.jwt.decode(
                 token, key, audience=settings.AUTH0_AUDIENCE
             )
         except (jose.JWTError, ValueError):
@@ -154,7 +155,7 @@ async def is_authenticated(auth_header: Optional[str] = Depends(oauth2_scheme)) 
 
 async def require_auth(
     auth_header: Optional[str] = Depends(oauth2_scheme),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     try:
         return await authenticator.verify(auth_header)
     except AuthenticationFailed as e:
@@ -163,8 +164,8 @@ async def require_auth(
 
 async def require_userinfo(
     auth_header: str = Depends(oauth2_scheme),
-    token: Dict[str, Any] = Depends(require_auth),
-) -> Dict[str, Any]:
+    token: dict[str, Any] = Depends(require_auth),
+) -> dict[str, Any]:
     try:
         return await authenticator.get_userinfo(auth_header, token["sub"])
     except Exception as e:
@@ -173,7 +174,7 @@ async def require_userinfo(
 
 async def require_user_id(
     manager: Manager = Depends(get_manager),
-    userinfo: Dict[str, Any] = Depends(require_userinfo),
+    userinfo: dict[str, Any] = Depends(require_userinfo),
 ) -> int:
     user_id: int = await manager.execute(
         User.insert(sub=userinfo["sub"], profile=userinfo).on_conflict(

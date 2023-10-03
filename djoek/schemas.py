@@ -1,21 +1,19 @@
 from decimal import Decimal
-from typing import List, Optional, TypeVar, overload
+from typing import Optional, Self, overload
 
 from pydantic.main import BaseModel
 
 from djoek.models import Song
 
-T_ItemSchema = TypeVar("T_ItemSchema", bound="ItemSchema")
-
 
 class ItemSchema(BaseModel):
     title: str
-    duration: Optional[Decimal]
+    duration: Optional[Decimal] = None
     external_id: str
     preview_url: str
-    username: Optional[str]
-    upvotes: Optional[int]
-    downvotes: Optional[int]
+    username: Optional[str] = None
+    upvotes: Optional[int] = None
+    downvotes: Optional[int] = None
 
     @classmethod
     @overload
@@ -24,13 +22,11 @@ class ItemSchema(BaseModel):
 
     @classmethod  # noqa: F811
     @overload
-    def from_song(cls, song: Song, *, is_authenticated: bool) -> T_ItemSchema:
+    def from_song(cls, song: Song, *, is_authenticated: bool) -> Self:
         ...
 
     @classmethod  # noqa: F811
-    def from_song(
-        cls, song: Optional[Song], *, is_authenticated: bool
-    ) -> Optional[T_ItemSchema]:
+    def from_song(cls, song: Optional[Song], *, is_authenticated: bool) -> Self | None:
         if song is not None:
             return cls(
                 title=song.title,
@@ -62,7 +58,7 @@ class SearchRequestSchema(BaseModel):
 
 class MetadataSchema(BaseModel):
     title: str
-    tags: List[str]
+    tags: list[str]
     extension: str
     preview_url: Optional[str]
     duration: Optional[Decimal]

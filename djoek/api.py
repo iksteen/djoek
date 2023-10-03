@@ -3,7 +3,7 @@ import logging
 import re
 from enum import Enum
 from pathlib import Path
-from typing import List, cast
+from typing import cast
 
 import aiofiles
 import aiofiles.os
@@ -61,13 +61,13 @@ async def status(
 
 
 @app.get(
-    "/playlist/", response_model=List[ItemSchema], dependencies=[Depends(require_auth)]
+    "/playlist/", response_model=list[ItemSchema], dependencies=[Depends(require_auth)]
 )
-async def playlist_list(player: Player = Depends(get_player)) -> List[ItemSchema]:
+async def playlist_list(player: Player = Depends(get_player)) -> list[ItemSchema]:
     return [ItemSchema.from_song(song, is_authenticated=True) for song in player.queue]
 
 
-def edge_ngrams(key: str) -> List[str]:
+def edge_ngrams(key: str) -> list[str]:
     return [key[0:i] for i in range(1, len(key) + 1)]
 
 
@@ -179,11 +179,13 @@ async def playlist_add(
 
 
 @app.post(
-    "/search/", response_model=List[ItemSchema], dependencies=[Depends(require_auth)],
+    "/search/",
+    response_model=list[ItemSchema],
+    dependencies=[Depends(require_auth)],
 )
 async def search(
     query: SearchRequestSchema, manager: Manager = Depends(get_manager)
-) -> List[ItemSchema]:
+) -> list[ItemSchema]:
     if query.provider == "local":
         songs = await manager.execute(
             Song.select(Song, User)
@@ -232,12 +234,14 @@ async def vote_up(
     if direction is VoteDirection.up and current_vote is not VoteDirection.down:
         if current_song.user_id is None:
             raise HTTPException(
-                status_code=HTTP_400_BAD_REQUEST, detail="Can't upvote unclaimed song.",
+                status_code=HTTP_400_BAD_REQUEST,
+                detail="Can't upvote unclaimed song.",
             )
 
         if current_song.user_id == user_id:
             raise HTTPException(
-                status_code=HTTP_400_BAD_REQUEST, detail="Can't upvote your own songs.",
+                status_code=HTTP_400_BAD_REQUEST,
+                detail="Can't upvote your own songs.",
             )
 
     if current_vote is direction:

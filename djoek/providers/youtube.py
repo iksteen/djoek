@@ -1,7 +1,7 @@
 import asyncio
 import html
 import re
-from typing import List, Optional
+from typing import Optional
 
 import httpx
 import isodate
@@ -20,7 +20,7 @@ class YouTubeProvider(Provider):
     key = "youtube"
 
     async def get_metadata(self, content_id: str) -> MetadataSchema:
-        tags: List[str]
+        tags: list[str]
         async with httpx.AsyncClient() as client:
             r = await client.get(
                 "https://www.googleapis.com/youtube/v3/videos",
@@ -62,7 +62,7 @@ class YouTubeProvider(Provider):
     async def download(self, content_id: str, song: Song) -> None:
         basename = song.path.parent / song.path.stem
         process = await asyncio.create_subprocess_exec(
-            "youtube-dl",
+            "yt-dlp",
             "-x",
             "--audio-format",
             "mp3",
@@ -75,7 +75,7 @@ class YouTubeProvider(Provider):
         )
         await process.communicate()
 
-    async def search(self, query: str) -> List[ItemSchema]:
+    async def search(self, query: str) -> list[ItemSchema]:
         m = YOUTUBE_URL_RE.match(query)
         if m is not None:
             content_id = m.group(1)

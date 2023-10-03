@@ -4,7 +4,7 @@ import logging
 import os
 import random
 from base64 import urlsafe_b64decode
-from typing import List, Optional, cast
+from typing import Optional, cast
 
 import aiofiles
 from fastapi import FastAPI
@@ -37,14 +37,14 @@ async def get_player(request: Request) -> "Player":
 
 class Player:
     mpd_client: MPDClient
-    queue: List[Song]
+    queue: list[Song]
     current_song_id: Optional[int]
     current_song: Optional[Song]
     next_song_id: Optional[int]
     next_song: Optional[Song]
-    recent: List[int]
+    recent: list[int]
 
-    def __init__(self, manager: Manager, ws_clients: List[WebSocket]):
+    def __init__(self, manager: Manager, ws_clients: list[WebSocket]):
         self.manager = manager
         self.queue = []
         self.mpd_client = MPDClient(settings.MPD_HOST)
@@ -64,7 +64,7 @@ class Player:
         except Exception:
             logger.exception("Failed to load state")
         else:
-            queue_ids = state.get("queue", [])
+            queue_ids: list[int] = state.get("queue", [])
             songs = await self.manager.execute(
                 Song.select(Song, User)
                 .join(User, JOIN.LEFT_OUTER)

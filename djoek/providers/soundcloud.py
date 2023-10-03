@@ -1,6 +1,6 @@
 import asyncio
 import subprocess
-from typing import Any, Dict, List, cast
+from typing import Any, cast
 
 import aiofiles
 import httpx
@@ -11,7 +11,7 @@ from djoek.providers import Provider
 from djoek.schemas import ItemSchema, MetadataSchema
 
 
-def get_title(item: Dict[str, Any]) -> str:
+def get_title(item: dict[str, Any]) -> str:
     title: str = item["title"]
     artist = (item.get("publisher_metadata") or {}).get("artist")
     if artist:
@@ -26,13 +26,13 @@ def get_title(item: Dict[str, Any]) -> str:
 class SoundcloudProvider(Provider):
     key = "soundcloud"
 
-    async def get_track_info(self, content_id: str) -> Dict[str, Any]:
+    async def get_track_info(self, content_id: str) -> dict[str, Any]:
         async with httpx.AsyncClient() as client:
             r = await client.get(
                 "https://api-v2.soundcloud.com/tracks",
                 params={"ids": content_id, "client_id": settings.SOUNDCLOUD_CLIENT_ID},
             )
-        return cast(Dict[str, Any], r.json()[0])
+        return cast(dict[str, Any], r.json()[0])
 
     async def get_metadata(self, content_id: str) -> MetadataSchema:
         metadata = await self.get_track_info(content_id)
@@ -45,7 +45,7 @@ class SoundcloudProvider(Provider):
 
     async def download(self, content_id: str, song: Song) -> None:
         p = await asyncio.create_subprocess_exec(
-            "youtube-dl",
+            "yt-dlp",
             "-f",
             "mp3",
             "-o",
@@ -58,7 +58,7 @@ class SoundcloudProvider(Provider):
         async with aiofiles.open(song.path, "wb") as f:
             await f.write(data)
 
-    async def search(self, query: str) -> List[ItemSchema]:
+    async def search(self, query: str) -> list[ItemSchema]:
         async with httpx.AsyncClient() as client:
             r = await client.get(
                 "https://api-v2.soundcloud.com/search/tracks",

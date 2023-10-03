@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import List
 
 from djoek.models import Song
 from djoek.schemas import ItemSchema, MetadataSchema
@@ -17,5 +16,5 @@ class Provider(ABC):
         ...
 
     @abstractmethod
-    async def search(self, query: str) -> List[ItemSchema]:
+    async def search(self, query: str) -> list[ItemSchema]:
         ...

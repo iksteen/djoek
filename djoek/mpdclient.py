@@ -3,7 +3,7 @@ import logging
 import re
 from functools import partial
 from types import TracebackType
-from typing import Match, Optional, Tuple, Type, Union
+from typing import Literal, Match, Optional, Self, Type
 
 from multidict import MultiDict
 
@@ -28,13 +28,15 @@ class MPDCommandError(Exception):
 
 
 class MPDClient:
-    task: "Optional[asyncio.Task[None]]"
+    task: Optional[asyncio.Task[None]]
 
     def __init__(self, host: str = "localhost", port: int = 6600) -> None:
         self.host = host
         self.port = port
         self.task = None
-        self.command_queue: "asyncio.Queue[Tuple[str, asyncio.Future[MultiDict[Union[str, bytes]]]]]" = asyncio.Queue()
+        self.command_queue: asyncio.Queue[
+            tuple[str, asyncio.Future[MultiDict[str | bytes]]]
+        ] = asyncio.Queue()
         self.command_event = asyncio.Event()
 
     def start(self) -> None:
@@ -75,15 +77,21 @@ class MPDClient:
                     await writer.drain()
 
                     is_idle_command = command.startswith("idle ")
-                    response: MultiDict[Union[str, bytes]] = MultiDict()
+                    response: MultiDict[str | bytes] = MultiDict()
                     match: Optional[Match[str]] = None
 
                     while True:
                         if is_idle_command:
                             t_event = asyncio.create_task(self.command_event.wait())
                             t_readline = asyncio.create_task(reader.readline())
+                            tasks: set[
+                                asyncio.Task[Literal[True]] | asyncio.Task[bytes]
+                            ] = {
+                                t_event,
+                                t_readline,
+                            }
                             done, pending = await asyncio.wait(
-                                {t_event, t_readline},
+                                tasks,
                                 return_when=asyncio.FIRST_COMPLETED,
                             )
 
@@ -152,7 +160,7 @@ class MPDClient:
                 writer.close()
                 await writer.wait_closed()
 
-    async def _connect(self) -> Tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+    async def _connect(self) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
         """
         Do not call this yourself. Use `.start()` instead.
         """
@@ -188,14 +196,14 @@ class MPDClient:
 
             return reader, writer
 
-    async def execute(self, command: str) -> MultiDict[Union[str, bytes]]:
+    async def execute(self, command: str) -> MultiDict[str | bytes]:
         loop = asyncio.get_event_loop()
-        f: "asyncio.Future[MultiDict[Union[str, bytes]]]" = loop.create_future()
+        f: asyncio.Future[MultiDict[str | bytes]] = loop.create_future()
         await self.command_queue.put((command, f))
         self.command_event.set()
         return await f
 
-    async def __aenter__(self) -> "MPDClient":
+    async def __aenter__(self) -> Self:
         self.start()
         return self
 
@@ -209,7 +217,7 @@ class MPDClient:
             self.task.cancel()
 
 
-def run_done_callback(client: MPDClient, f: "asyncio.Future[None]") -> None:
+def run_done_callback(client: MPDClient, f: asyncio.Future[None]) -> None:
     client.task = None
     try:
         f.result()
